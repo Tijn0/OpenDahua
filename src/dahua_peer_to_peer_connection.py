@@ -2,7 +2,7 @@ import socket
 import time
 from datetime import datetime
 
-from helpers import UDP, get_auth, get_key, get_nonce, get_enc, get_dec, PTCPPayload
+from helpers import UDP, get_auth, get_key, get_nonce, get_enc, get_dec
 from object.address import Address
 from object.authentication_identifier import AuthenticationIdentifier
 from object.cookie import Cookie
@@ -68,8 +68,8 @@ class DahuaPeerToPeerConnection:
     # PTCP message constants.
     PTCP_MESSAGE_SYN = b"\x00\x03\x01\x00"
     PTCP_MESSAGE_REQUEST_SIGN = b"\x17\x00\x00\x00" + b"\x00\x00\x00\x00\x00\x00\x00\x00"
-    PTCP_MESSAGE_EMPTY = b""
-    
+    PTCP_MESSAGE_HEARTBEAT = b"\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+
     # Time constants.
     TIME_NUMBER_OF_SECOND_TIMEOUT_HANDSHAKE = 1
 
@@ -228,8 +228,7 @@ class DahuaPeerToPeerConnection:
             raise Exception(self.ERROR_NO_RESPONSE_FROM_DEVICE)
         
         transaction_identifier_response = TransactionIdentifier(
-            data[
-                self.INDEX_PTCP_RESPONSE_TRANSACTION_IDENTIFIER_START:self.INDEX_PTCP_RESPONSE_TRANSACTION_IDENTIFIER_END],
+            data[self.INDEX_PTCP_RESPONSE_TRANSACTION_IDENTIFIER_START:self.INDEX_PTCP_RESPONSE_TRANSACTION_IDENTIFIER_END],
         )
         self._remote_device.send((
                 b"\xfe\xfe\xff\xe7"
@@ -240,8 +239,7 @@ class DahuaPeerToPeerConnection:
                 + b"\xff\xfb\xff\xf7\xff\xfe"
                 + self._address_device_local.get_address_encoded()
         ))
-        
-        data = self._remote_device.recv()
+        _ = self._remote_device.recv()
         
         for _ in range(self.NUMBER_OF_PACKET_HANDSHAKE):
             self._remote_device.send((
@@ -267,10 +265,6 @@ class DahuaPeerToPeerConnection:
         )
         response = self._remote_device.read_ptcp()
         
-        if response.body == self.PTCP_MESSAGE_EMPTY:
-            # Sometimes we get empty messages from our friends at Dahua.
-            response = self._remote_device.read_ptcp()
-    
         assert response.body[0] == 0x1A
         
         self._remote_device.request_ptcp(
@@ -278,8 +272,7 @@ class DahuaPeerToPeerConnection:
         )
         response = self._remote_device.read_ptcp()
         
-        print(response.body)
-        assert response.body == self.PTCP_MESSAGE_EMPTY
+        assert response.body == self.PTCP_MESSAGE_HEARTBEAT
         
 
     
@@ -312,10 +305,6 @@ class DahuaPeerToPeerConnection:
         self._remote_agent.request_ptcp(self.PTCP_MESSAGE_REQUEST_SIGN)
         response = self._remote_agent.read_ptcp()
         
-        while response.body == self.PTCP_MESSAGE_EMPTY:
-            # Sometimes we get empty messages from our friends at Dahua.
-            response = self._remote_agent.read_ptcp()
-            
         return response.body[self.INDEX_SIGN_START:]
     
     def request(self) -> None:
@@ -331,11 +320,7 @@ class DahuaPeerToPeerConnection:
         )
         
         response = self._remote_device.read_ptcp()
-        while response.body == self.PTCP_MESSAGE_EMPTY:
-            # Sometimes we get empty messages from our friends at Dahua.
-            response = self._remote_device.read_ptcp()
         
-        print(response)
         assert response.body[0] == 0x12
         
         last_heartbeat = time.time()
@@ -353,7 +338,7 @@ class DahuaPeerToPeerConnection:
             
             if now - last_heartbeat > 10:
                 print("sending heartbeat")
-                self._remote_device.request_ptcp(b'\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
+                self._remote_device.request_ptcp(self.PTCP_MESSAGE_HEARTBEAT)
                 last_heartbeat = now
         
         # payload = f"GET / HTTP/1.1\r\n\r\n".encode()

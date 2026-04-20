@@ -155,6 +155,9 @@ class PTCP:
 
 
 class UDP(socket.socket):
+    # PTCP message constants.
+    PTCP_MESSAGE_EMPTY = b""
+    
     def __init__(self, host, port, debug=False):
         super().__init__(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -259,15 +262,19 @@ Content-Length: {len(body)}
             print(f":{self.lport} <<< {self.rhost}:{self.rport}")
             # print(data)
 
-        res = PTCP.parse(data)
-        self.ptcp_recv += len(res.body)
-        self.rmid = res.lmid
+        response = PTCP.parse(data)
+        self.ptcp_recv += len(response.body)
+        self.rmid = response.lmid
 
         if self.debug:
             # print("Parsed <<<")
-            print(res)
+            print(response)
 
-        return res
+        while response.body == self.PTCP_MESSAGE_EMPTY:
+            # Sometimes we get empty messages from our friends at Dahua.
+            response = self.read_ptcp()
+        
+        return response
 
     def request_ptcp(self, body=b""):
         ptcp = PTCP(
