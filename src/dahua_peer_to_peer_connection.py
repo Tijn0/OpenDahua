@@ -102,6 +102,7 @@ class DahuaPeerToPeerConnection:
         
         self.request()
 
+
     def _probe(self) -> None:
         self._remote_main.request(self.ENDPOINT_PEER_TO_PEER_SERVER_PROBE)
         
@@ -340,20 +341,3 @@ class DahuaPeerToPeerConnection:
                 print("sending heartbeat")
                 self._remote_device.request_ptcp(self.PTCP_MESSAGE_HEARTBEAT)
                 last_heartbeat = now
-        
-        # payload = f"GET / HTTP/1.1\r\n\r\n".encode()
-        #
-        # self._remote_device.request_ptcp(
-        #     bytes(PTCPPayload(realm_identifier.get_realm_identifier_int(), payload)),
-        # )
-        #
-        # response = self._remote_device.read_ptcp()
-        # while response.body == self.PTCP_MESSAGE_EMPTY or response.body[0] == 0x13:
-        #     # Sometimes we get empty messages from our friends at Dahua.
-        #     response = self._remote_device.read_ptcp()
-        #
-        # print(response)
-        # body = PTCPPayload.parse(response.body)
-        #
-        # print(body.payload)
-        # print(body.payload.decode())
