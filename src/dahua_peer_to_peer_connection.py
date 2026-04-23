@@ -2,12 +2,13 @@ import socket
 import time
 from datetime import datetime
 
-from helpers import UDP, get_auth, get_key, get_nonce, get_enc, get_dec
-from object.address import Address
-from object.authentication_identifier import AuthenticationIdentifier
-from object.cookie import Cookie
-from object.realm_identifier import RealmIdentifier
-from object.transaction_identifier import TransactionIdentifier
+from src.helpers import UDP, get_auth, get_key, get_nonce, get_enc, get_dec
+from src.object.address import Address
+from src.object.authentication_identifier import AuthenticationIdentifier
+from src.object.cookie import Cookie
+from src.object.realm_identifier import RealmIdentifier
+from src.object.transaction_identifier import TransactionIdentifier
+from src.object.dahua_device import DahuaDevice
 
 MAIN_SERVER = "www.easy4ipcloud.com"
 MAIN_PORT = 8800
@@ -73,14 +74,12 @@ class DahuaPeerToPeerConnection:
     # Time constants.
     TIME_NUMBER_OF_SECOND_TIMEOUT_HANDSHAKE = 1
 
-    def __init__(self, serial_number: str, username: str, password: str):
-        self._serial_number: str = serial_number
-        self._username: str = username
-        self._password: str = password
+    def __init__(self, device: DahuaDevice):
+        self._device: DahuaDevice = device
         
         self._authentication_identifier: AuthenticationIdentifier = AuthenticationIdentifier.create_random()
         self._nonce: int = get_nonce()
-        self._key: bytes = get_key(self._username, self._password)
+        self._key: bytes = get_key(self._device.get_username(), self._device.get_password())
     
         self._remote_main: UDP = UDP(MAIN_SERVER, MAIN_PORT)
         self._remote_relay: UDP|None = None
@@ -108,7 +107,7 @@ class DahuaPeerToPeerConnection:
         
         
     def _determine_remote_peer_to_peer(self) -> UDP:
-        response = self._remote_main.request(self.ENDPOINT_PEER_TO_PEER_SERVER_INFO.format(serial_number=self._serial_number))
+        response = self._remote_main.request(self.ENDPOINT_PEER_TO_PEER_SERVER_INFO.format(serial_number=self._device.get_serial_number()))
         
         address_server_peer_to_peer = Address(response[self.FIELD_DATA][self.FIELD_BODY][self.FIELD_ADDRESS_SERVER_PEER_TO_PEER])
 
@@ -118,10 +117,10 @@ class DahuaPeerToPeerConnection:
     def _probe_device(self) -> None:
         remote_peer_to_peer = self._determine_remote_peer_to_peer()
         
-        remote_peer_to_peer.request(self.ENDPOINT_DEVICE_PROBE.format(serial_number=self._serial_number))
+        remote_peer_to_peer.request(self.ENDPOINT_DEVICE_PROBE.format(serial_number=self._device.get_serial_number()))
         
         # TODO: random salt shit
-        remote_peer_to_peer.request(self.ENDPOINT_DEVICE_INFO.format(serial_number=self._serial_number))
+        remote_peer_to_peer.request(self.ENDPOINT_DEVICE_INFO.format(serial_number=self._device.get_serial_number()))
 
         remote_peer_to_peer.close()
         
@@ -150,7 +149,7 @@ class DahuaPeerToPeerConnection:
         )
         
         _ = remote_device.request(
-            path=self.ENDPOINT_DEVICE_PEER_TO_PEER_CHANNEL.format(serial_number=self._serial_number),
+            path=self.ENDPOINT_DEVICE_PEER_TO_PEER_CHANNEL.format(serial_number=self._device.get_serial_number()),
             body=body,
             should_read=False,
         )
@@ -168,7 +167,7 @@ class DahuaPeerToPeerConnection:
         )
         
         response = remote_device.read_data(return_error=True)
-        
+
         address_device_local_encrypted = response[self.FIELD_DATA][self.FIELD_BODY][self.FIELD_ADDRESS_DEVICE_LOCAL_ENCRYPTED]
         self._nonce = response[self.FIELD_DATA][self.FIELD_BODY][self.FIELD_NONCE]
         address_device_local_string = get_dec(self._key, self._nonce, address_device_local_encrypted)
@@ -195,7 +194,7 @@ class DahuaPeerToPeerConnection:
         address_remote_agent = Address.create_from_ip_and_port(self._remote_agent.rhost, self._remote_agent.rport)
         
         _ = self._remote_main.request(
-            path=self.ENDPOINT_DEVICE_RELAY_CHANNEL.format(serial_number=self._serial_number),
+            path=self.ENDPOINT_DEVICE_RELAY_CHANNEL.format(serial_number=self._device.get_serial_number()),
             body=self.BODY_DEVICE_RELAY_CHANNEL.format(
                 header_authentication=header_authentication,
                 address_remote_agent=address_remote_agent.get_address_string(),
@@ -285,7 +284,7 @@ class DahuaPeerToPeerConnection:
             payload = self._generate_address_local_encrypted(port_local)
         
         return get_auth(
-            username=self._username,
+            username=self._device.get_username(),
             key=self._key,
             nonce=self._nonce,
             payload=payload,
