@@ -2,7 +2,7 @@ import socket
 import time
 from datetime import datetime
 
-from src.helpers import UDP, get_auth, get_key, get_nonce, get_enc, get_dec
+from src.helpers import UDP, get_auth, get_key, get_nonce, get_enc, get_dec, PTCPPayload
 from src.object.address import Address
 from src.object.authentication_identifier import AuthenticationIdentifier
 from src.object.cookie import Cookie
@@ -24,20 +24,13 @@ class DahuaPeerToPeerConnection:
     ENDPOINT_DEVICE_PROBE = "/probe/device/{serial_number}"
     ENDPOINT_DEVICE_INFO = "/info/device/{serial_number}"
     ENDPOINT_DEVICE_PEER_TO_PEER_CHANNEL = "/device/{serial_number}/p2p-channel"
-    ENDPOINT_RELAY_ONLINE = "/online/relay"
-    ENDPOINT_RELAY_AGENT = "/relay/agent"
-    ENDPOINT_RELAY_START = "/relay/start/{token_relay}"
-    ENDPOINT_DEVICE_RELAY_CHANNEL = "/device/{serial_number}/relay-channel"
 
     # Field constants.
     FIELD_DATA = "data"
     FIELD_BODY = "body"
     FIELD_ADDRESS_SERVER_PEER_TO_PEER = "US"
-    FIELD_ADDRESS_SERVER_RELAY = "Address"
-    FIELD_ADDRESS_SERVER_AGENT = "Agent"
     FIELD_ADDRESS_DEVICE_LOCAL_ENCRYPTED = "LocalAddr"
     FIELD_ADDRESS_DEVICE_PUBLIC = "PubAddr"
-    FIELD_TOKEN_RELAY = "Token"
     FIELD_NONCE = "Nonce"
 
     # IP constants.
@@ -48,18 +41,14 @@ class DahuaPeerToPeerConnection:
     
     # Body constants.
     BODY_DEVICE_PEER_TO_PEER_CHANNEL = "<body>{header_authentication}<Identify>{authentication_identifier}</Identify>{part_body_address_local_encrypted}<version>5.0.0</version></body>"
-    BODY_RELAY_START = "<body><Client>:0</Client></body>"
-    BODY_DEVICE_RELAY_CHANNEL = "<body>{header_authentication}<agentAddr>{address_remote_agent}</agentAddr></body>"
 
     # Separator constants.
     SEPARATOR_ADDRESS = ":"
-    SEPARATOR_ALL_ADDRESS = ","
 
     # Index constants.
     INDEX_ALL_ADDRESS_DEVICE = 1
     INDEX_ADDRESS_DEVICE = 1
     INDEX_PORT_DEVICE = 1
-    INDEX_SIGN_START = 12
     INDEX_PTCP_RESPONSE_TRANSACTION_IDENTIFIER_START = 8
     INDEX_PTCP_RESPONSE_TRANSACTION_IDENTIFIER_END = 20
     
@@ -68,7 +57,6 @@ class DahuaPeerToPeerConnection:
 
     # PTCP message constants.
     PTCP_MESSAGE_SYN = b"\x00\x03\x01\x00"
-    PTCP_MESSAGE_REQUEST_SIGN = b"\x17\x00\x00\x00" + b"\x00\x00\x00\x00\x00\x00\x00\x00"
     PTCP_MESSAGE_HEARTBEAT = b"\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
 
     # Time constants.
@@ -82,8 +70,6 @@ class DahuaPeerToPeerConnection:
         self._key: bytes = get_key(self._device.get_username(), self._device.get_password())
     
         self._remote_main: UDP = UDP(MAIN_SERVER, MAIN_PORT)
-        self._remote_relay: UDP|None = None
-        self._remote_agent: UDP|None = None
         self._remote_device: UDP|None = None
         
         # TODO: dit misschien op een betere plek neerzetten
@@ -96,7 +82,6 @@ class DahuaPeerToPeerConnection:
         self._probe()
         self._probe_device()
         self._open_peer_to_peer_channel()
-        self._open_relay()
         self._perform_ptcp_handshake()
         
         self.request()
@@ -124,14 +109,6 @@ class DahuaPeerToPeerConnection:
 
         remote_peer_to_peer.close()
         
-        
-    def _determine_remote_relay(self) -> UDP:
-        response = self._remote_main.request(self.ENDPOINT_RELAY_ONLINE)
-        
-        address_server_relay = Address(response[self.FIELD_DATA][self.FIELD_BODY][self.FIELD_ADDRESS_SERVER_RELAY])
-        
-        return UDP.create_from_address(address_server_relay)
-
 
     def _open_peer_to_peer_channel(self) -> UDP:
         # We don't know where the device is yet so we temporarily create it with the remote main address.
@@ -153,21 +130,16 @@ class DahuaPeerToPeerConnection:
             body=body,
             should_read=False,
         )
+        try:
+            response = remote_device.read_data(return_error=True, timeout=5)
+        except TimeoutError:
+            _ = remote_device.request(
+                path=self.ENDPOINT_DEVICE_PEER_TO_PEER_CHANNEL.format(serial_number=self._device.get_serial_number()),
+                body=body,
+                should_read=False,
+            )
+            response = remote_device.read_data(return_error=True, timeout=5)
         
-        remote_relay = self._determine_remote_relay()
-        
-        response = remote_relay.request(self.ENDPOINT_RELAY_AGENT)
-        token_relay = response[self.FIELD_DATA][self.FIELD_BODY][self.FIELD_TOKEN_RELAY]
-        address_remote_agent = Address(response[self.FIELD_DATA][self.FIELD_BODY][self.FIELD_ADDRESS_SERVER_AGENT])
-        
-        remote_agent = UDP.create_from_address(address_remote_agent)
-        remote_agent.request(
-            path=self.ENDPOINT_RELAY_START.format(token_relay=token_relay),
-            body=self.BODY_RELAY_START,
-        )
-        
-        response = remote_device.read_data(return_error=True)
-
         address_device_local_encrypted = response[self.FIELD_DATA][self.FIELD_BODY][self.FIELD_ADDRESS_DEVICE_LOCAL_ENCRYPTED]
         self._nonce = response[self.FIELD_DATA][self.FIELD_BODY][self.FIELD_NONCE]
         address_device_local_string = get_dec(self._key, self._nonce, address_device_local_encrypted)
@@ -181,32 +153,9 @@ class DahuaPeerToPeerConnection:
         remote_device.set_ip(address_device_public.get_ip())
         remote_device.set_port(address_device_public.get_port())
         
-        # TODO: hier iets beters voor bedenken
-        self._remote_relay = remote_relay
-        self._remote_agent = remote_agent
         self._remote_device = remote_device
 
         return remote_device
-        
-    
-    def _open_relay(self) -> None:
-        header_authentication = self._generate_header_authentication()
-        address_remote_agent = Address.create_from_ip_and_port(self._remote_agent.rhost, self._remote_agent.rport)
-        
-        _ = self._remote_main.request(
-            path=self.ENDPOINT_DEVICE_RELAY_CHANNEL.format(serial_number=self._device.get_serial_number()),
-            body=self.BODY_DEVICE_RELAY_CHANNEL.format(
-                header_authentication=header_authentication,
-                address_remote_agent=address_remote_agent.get_address_string(),
-            ),
-            should_read=False,
-        )
-        
-        # Server NAT info.
-        response = self._remote_agent.read()
-        
-        self._sign = self._get_sign()
-        
         
     def _perform_ptcp_handshake(self) -> None:
         address_device = Address.create_from_ip_and_port(self._remote_device.rhost, self._remote_device.rport)
@@ -260,28 +209,10 @@ class DahuaPeerToPeerConnection:
         response = self._remote_device.read_ptcp()
         assert response.body == self.PTCP_MESSAGE_SYN
     
-        self._remote_device.request_ptcp(
-            b"\x19\x00\x00\x00" + b"\x00\x00\x00\x00" + b"\x00\x00\x00\x00" + self._sign
-        )
-        response = self._remote_device.read_ptcp()
-        
-        assert response.body[0] == 0x1A
-        
-        self._remote_device.request_ptcp(
-            b"\x1b\x00\x00\x00" + b"\x00\x00\x00\x00" + b"\x00\x00\x00\x00"
-        )
-        response = self._remote_device.read_ptcp()
-        
-        assert response.body == self.PTCP_MESSAGE_HEARTBEAT
-        
-
     
     # TODO: Custom type van maken
-    def _generate_header_authentication(self, port_local: int = None) -> str:
-        if port_local is None:
-            payload = ""
-        else:
-            payload = self._generate_address_local_encrypted(port_local)
+    def _generate_header_authentication(self, port_local: int) -> str:
+        payload = self._generate_address_local_encrypted(port_local)
         
         return get_auth(
             username=self._device.get_username(),
@@ -296,16 +227,6 @@ class DahuaPeerToPeerConnection:
         
         return get_enc(self._key, self._nonce, address_local.get_address_string())
     
-    
-    def _get_sign(self) -> bytes:
-        self._remote_agent.request_ptcp(self.PTCP_MESSAGE_SYN)
-        response = self._remote_agent.read_ptcp()
-        assert response.body == self.PTCP_MESSAGE_SYN
-        
-        self._remote_agent.request_ptcp(self.PTCP_MESSAGE_REQUEST_SIGN)
-        response = self._remote_agent.read_ptcp()
-        
-        return response.body[self.INDEX_SIGN_START:]
     
     def request(self) -> None:
         realm_identifier = RealmIdentifier.create_random()

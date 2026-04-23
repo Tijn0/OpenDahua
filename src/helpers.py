@@ -195,8 +195,8 @@ class UDP(socket.socket):
 
         return data
 
-    def read(self, return_error=False):
-        data = self.recv().decode()
+    def read(self, return_error=False, timeout: int = None):
+        data = self.recv(timeout=timeout).decode()
 
         print(f":{self.lport} <<< {self.rhost}:{self.rport}")
         print(data.replace("\r\n", "\n"))
@@ -212,11 +212,11 @@ class UDP(socket.socket):
 
         return res
     
-    def read_data(self, return_error=False):
-        response = self.read(return_error)
+    def read_data(self, return_error=False, timeout: int = None):
+        response = self.read(return_error, timeout=timeout)
         
         if response["code"] == 100:
-            return self.read_data(return_error)
+            return self.read_data(return_error, timeout=timeout)
         elif response["code"] == 200:
             return response
         else:
