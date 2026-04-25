@@ -204,11 +204,6 @@ class DahuaPeerToPeerConnection:
             
             self._remote_device.recv(timeout=self.TIME_NUMBER_OF_SECOND_TIMEOUT_HANDSHAKE)
             
-        # Syn ack
-        self._remote_device.request_ptcp(self.PTCP_MESSAGE_SYN)
-        response = self._remote_device.read_ptcp()
-        assert response.body == self.PTCP_MESSAGE_SYN
-    
     
     # TODO: Custom type van maken
     def _generate_header_authentication(self, port_local: int) -> str:
@@ -229,6 +224,10 @@ class DahuaPeerToPeerConnection:
     
     
     def request(self) -> None:
+        self._remote_device.request_ptcp(self.PTCP_MESSAGE_SYN)
+        response = self._remote_device.read_ptcp()
+        assert response.body == self.PTCP_MESSAGE_SYN
+        
         realm_identifier = RealmIdentifier.create_random()
         
         self._remote_device.request_ptcp(
@@ -239,9 +238,9 @@ class DahuaPeerToPeerConnection:
             + b"\x00\x00\x00\x50"
             + b"\x7f\x00\x00\x01",
         )
-        
+
         response = self._remote_device.read_ptcp()
-        
+
         assert response.body[0] == 0x12
         
         last_heartbeat = time.time()
@@ -257,7 +256,9 @@ class DahuaPeerToPeerConnection:
             
             now = time.time()
             
-            if now - last_heartbeat > 10:
+            if now - last_heartbeat > 2:
                 print("sending heartbeat")
                 self._remote_device.request_ptcp(self.PTCP_MESSAGE_HEARTBEAT)
+                self._remote_device.request_ptcp()
+                self._remote_device.request_ptcp(self.PTCP_MESSAGE_SYN)
                 last_heartbeat = now
