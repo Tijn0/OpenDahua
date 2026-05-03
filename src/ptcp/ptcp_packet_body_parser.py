@@ -9,17 +9,14 @@ from src.ptcp.ptcp_packet_type import PtcpPacketType
 
 class PtcpPacketBodyParser:
     # Error constants.
-    ERROR_UNEXPECTED_PACKET_TYPE = "Unexpected packet type \"{packet_type:02X}\"."
+    ERROR_UNEXPECTED_PACKET_TYPE = "Unexpected packet type \"{packet_type:02X}\" for packet with body \"{packet_body}\"."
 
-    # Body constants.
-    BODY_EMPTY = b""
-    
     # Index constants.
     INDEX_FIRST = 0
     
     @classmethod
     def parse(cls, body_bytes: bytes) -> PtcpPacketBody:
-        if body_bytes == cls.BODY_EMPTY:
+        if body_bytes == PtcpPacketBodyEmpty().get_ptcp_packet_body_bytes():
             return PtcpPacketBodyEmpty()
         else:
             packet_type_bytes = cls._determine_packet_type(body_bytes)
@@ -43,6 +40,5 @@ class PtcpPacketBodyParser:
         try:
             return PtcpPacketType(packet_type_bytes)
         except ValueError:
-            print(body_bytes)
-            raise Exception(cls.ERROR_UNEXPECTED_PACKET_TYPE.format(packet_type=packet_type_bytes))
+            raise Exception(cls.ERROR_UNEXPECTED_PACKET_TYPE.format(packet_type=packet_type_bytes, packet_body=body_bytes))
     
