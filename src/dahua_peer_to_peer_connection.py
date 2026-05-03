@@ -9,7 +9,7 @@ from src.object.cookie import Cookie
 from src.object.realm_identifier import RealmIdentifier
 from src.object.transaction_identifier import TransactionIdentifier
 from src.object.dahua_device import DahuaDevice
-from src.ptcp.socket_ptcp import SocketPtcp
+from src.ptcp.ptcp_socket import PtcpSocket
 
 MAIN_SERVER = "www.easy4ipcloud.com"
 MAIN_PORT = 8800
@@ -225,26 +225,26 @@ class DahuaPeerToPeerConnection:
     
     
     def request(self) -> None:
-        socket_ptcp = SocketPtcp(self._remote_device)
+        ptcp_socket = PtcpSocket(self._remote_device)
         
-        socket_ptcp.send_syn()
+        ptcp_socket.send_syn()
 
         realm_identifier = RealmIdentifier.create_random()
         
-        socket_ptcp.send_bind(realm_identifier, 80)
-        response = socket_ptcp.receive(timeout=0.1)
+        ptcp_socket.send_bind(realm_identifier, 80)
+        response = ptcp_socket.receive(timeout=0.1)
         
         last_heartbeat = time.time()
         
-        socket_ptcp.send(b"GET / HTTP/1.1\r\n\r\n", realm_identifier)
+        ptcp_socket.send(b"GET / HTTP/1.1\r\n\r\n", realm_identifier)
         while True:
             try:
-                response = socket_ptcp.receive(timeout=0.1)
+                response = ptcp_socket.receive(timeout=0.1)
             except socket.timeout:
                 pass
 
             now = time.time()
 
             if now - last_heartbeat > 2:
-                socket_ptcp.send_heartbeat()
+                ptcp_socket.send_heartbeat()
                 last_heartbeat = now

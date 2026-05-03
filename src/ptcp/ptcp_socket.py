@@ -13,7 +13,7 @@ from src.ptcp.ptcp_packet_identifier import PtcpPacketIdentifier
 from src.ptcp.ptcp_packet_parser import PtcpPacketParser
 
 
-class SocketPtcp:
+class PtcpSocket:
     # Time constants.
     TIME_NUMBER_OF_SECOND_RECEIVE_INTERVAL = 0.001
     
