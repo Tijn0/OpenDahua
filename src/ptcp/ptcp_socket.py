@@ -80,6 +80,7 @@ class PtcpSocket:
             self._handle_retransmit()
             self._handle_heartbeat()
         
+        
     def _handle_receive(self) -> None:
         try:
             data = self._socket_udp.recv(self.SIZE_BUFFER, timeout=self.TIMEOUT_NUMBER_OF_SECOND_RECEIVE)
@@ -88,11 +89,12 @@ class PtcpSocket:
             return
     
         packet = PtcpPacketParser.parse(data)
-        self._handle_packet(packet)
         
         # TODO: dit weghalen.
         print(f"RX: {packet}")
-
+        
+        self._handle_packet(packet)
+        
         
     def _handle_packet(self, packet: PtcpPacket) -> None:
         self._packet_identifier_local_received_last = packet.get_packet_identifier_local()
