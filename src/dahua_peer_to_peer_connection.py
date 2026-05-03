@@ -10,6 +10,7 @@ from src.object.realm_identifier import RealmIdentifier
 from src.object.transaction_identifier import TransactionIdentifier
 from src.object.dahua_device import DahuaDevice
 from src.ptcp.ptcp_socket import PtcpSocket
+from test.test_udp_socket import TestUdpSocket
 
 MAIN_SERVER = "www.easy4ipcloud.com"
 MAIN_PORT = 8800
@@ -113,7 +114,7 @@ class DahuaPeerToPeerConnection:
 
     def _open_peer_to_peer_channel(self) -> UDP:
         # We don't know where the device is yet so we temporarily create it with the remote main address.
-        remote_device = UDP(self._remote_main.rhost, self._remote_main.rport)
+        remote_device = TestUdpSocket(self._remote_main.rhost, self._remote_main.rport)
         
         header_authentication = self._generate_header_authentication(remote_device.lport)
         
@@ -227,24 +228,13 @@ class DahuaPeerToPeerConnection:
     def request(self) -> None:
         ptcp_socket = PtcpSocket(self._remote_device)
         
-        ptcp_socket.send_syn()
-
-        realm_identifier = RealmIdentifier.create_random()
+        ptcp_socket.send_bind(80)
         
-        ptcp_socket.send_bind(realm_identifier, 80)
-        response = ptcp_socket.receive(timeout=0.1)
-        
-        last_heartbeat = time.time()
-        
-        ptcp_socket.send(b"GET / HTTP/1.1\r\n\r\n", realm_identifier)
+        ptcp_socket.send(b"GET / HTTP/1.1\r\n\r\n")
         while True:
             try:
-                response = ptcp_socket.receive(timeout=0.1)
+                response = ptcp_socket.recv(timeout=0.1)
+                
+                print(response)
             except socket.timeout:
                 pass
-
-            now = time.time()
-
-            if now - last_heartbeat > 2:
-                ptcp_socket.send_heartbeat()
-                last_heartbeat = now

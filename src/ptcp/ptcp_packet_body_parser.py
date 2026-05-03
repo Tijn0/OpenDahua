@@ -43,5 +43,6 @@ class PtcpPacketBodyParser:
         try:
             return PtcpPacketType(packet_type_bytes)
         except ValueError:
+            print(body_bytes)
             raise Exception(cls.ERROR_UNEXPECTED_PACKET_TYPE.format(packet_type=packet_type_bytes))
     

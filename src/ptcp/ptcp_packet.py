@@ -57,7 +57,15 @@ class PtcpPacket:
     def get_packet_identifier_local(self) -> PtcpPacketIdentifier:
         """Get the lmid from the PTCP packet."""
         return self._packet_identifier_local
-
+    
+    def get_offset_sent(self) -> int:
+        """Get the rlid from the PTCP packet."""
+        return self._offset_sent
+    
+    def get_offset_received(self) -> int:
+        """Get the llid from the PTCP packet."""
+        return self._offset_received
+    
     def __str__(self) -> str:
         return self.FORMAT_PTCP_PACKET_STRING.format(
             offset_sent=self._offset_sent,

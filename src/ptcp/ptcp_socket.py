@@ -1,3 +1,5 @@
+import threading
+import time
 from collections import deque
 
 from src.helpers import UDP
@@ -14,11 +16,23 @@ from src.ptcp.ptcp_packet_parser import PtcpPacketParser
 
 
 class PtcpSocket:
+    # Error constants.
+    ERROR_DATA_TOO_LARGE = "The data is too large. Fix me by implementing packet chunking!"
+    
+    # Logging constants.
+    LOGGING_DROPPING_NON_CONTIGUOUS_PACKET = "Dropping non contiguous packet!"
+
     # Time constants.
     TIME_NUMBER_OF_SECOND_RECEIVE_INTERVAL = 0.001
-    
+    TIME_NUMBER_OF_SECOND_HEARTBEAT_INTERVAL = 2
+
+    # Timeout constants.
+    TIMEOUT_NUMBER_OF_SECOND_RECEIVE = 0.05
+    TIMEOUT_NUMBER_OF_SECOND_ACK = 0.05
+
     # Size constants.
     SIZE_BUFFER = 4096
+    SIZE_MAXIMUM_DATA = 1280
 
     def __init__(self, socket_udp: UDP):
         self._socket_udp: UDP = socket_udp
@@ -28,73 +42,109 @@ class PtcpSocket:
         self._number_of_packet_sent = 0
         self._packet_identifier_local = PtcpPacketIdentifier.ZERO()
         self._packet_identifier_local_received_last = PtcpPacketIdentifier.ZERO()
-        
-        self._packet_identifier_expected = PtcpPacketIdentifier.create_maximum()
+        self._realm_identifier = RealmIdentifier.create_random()
 
-        self._buffer = {}
-        self._queue = deque([])
-
-    def connect(self) -> None:
-        self.send_syn()
+        self._all_packet_unacked = {}
         
-    def receive(self, timeout: int|float = None) -> bytes:
-        data = self._socket_udp.recv(self.SIZE_BUFFER, timeout=timeout)
+        self._queue_receive: deque[bytes] = deque([])
+        self._queue_send: deque[PtcpPacketBody] = deque([])
+        
+        self._time_heartbeat_last = time.time()
+        
+        self._connection_thread = threading.Thread(target=self._connection_loop, daemon=True)
+        self._connection_thread.start()
+    
+    def send(self, data: bytes) -> None:
+        if len(data) > self.SIZE_MAXIMUM_DATA:
+            raise Exception(self.ERROR_DATA_TOO_LARGE)
+        else:
+            self._queue_send.append(PtcpPacketBodyData(self._realm_identifier, data))
+    
+    def recv(self, timeout: int | float = None) -> bytes:
+        start = time.time()
+        
+        while True:
+            try:
+                return self._queue_receive.popleft()
+            except IndexError:
+                if timeout is not None and time.time() - start >= timeout:
+                    raise TimeoutError
+                time.sleep(self.TIME_NUMBER_OF_SECOND_RECEIVE_INTERVAL)
+                
+    def _connection_loop(self) -> None:
+        self._send_syn()
+        
+        while True:
+            self._handle_receive()
+            self._handle_send()
+            self._handle_retransmit()
+            self._handle_heartbeat()
+        
+    def _handle_receive(self) -> None:
+        try:
+            data = self._socket_udp.recv(self.SIZE_BUFFER, timeout=self.TIMEOUT_NUMBER_OF_SECOND_RECEIVE)
+        except TimeoutError:
+            # Nothing to receive.
+            return
     
         packet = PtcpPacketParser.parse(data)
-        
-        self._offset_received += len(packet.get_body())
-        self._packet_identifier_local_received_last = packet.get_packet_identifier_local()
+        self._handle_packet(packet)
         
         # TODO: dit weghalen.
         print(f"RX: {packet}")
 
-        self.handle_packet(packet)
         
-        if packet.get_body().is_empty():
-            # Don't ack acks
+    def _handle_packet(self, packet: PtcpPacket) -> None:
+        self._packet_identifier_local_received_last = packet.get_packet_identifier_local()
+        
+        self._handle_ack(packet.get_offset_received())
+        
+        if packet.get_offset_sent() == self._offset_received:
+            packet_body = packet.get_body()
+            
+            if isinstance(packet_body, PtcpPacketBodyData):
+                self._queue_receive.append(packet_body.get_data_bytes())
+            else:
+                # Don't add non-data packets to the receive queue.
+                pass
+            
+            self._offset_received += len(packet.get_body())
+            
+            if packet.get_body().is_empty():
+                # Don't ack acks
+                pass
+            else:
+                self._send_ack()
+        
+        else:
+            print(self.LOGGING_DROPPING_NON_CONTIGUOUS_PACKET)
+            
+    def _handle_ack(self, offset_acked: int) -> None:
+        all_offset_acked: list[int] = [offset for offset in self._all_packet_unacked if offset <= offset_acked]
+        
+        for offset in all_offset_acked:
+            del self._all_packet_unacked[offset]
+        
+    def _handle_send(self):
+        # TODO: magic nummer.
+        if len(self._queue_send) == 0:
+            # Nothing to send.
             pass
         else:
-            self._send_ack()
-        
-        return packet.get_body().get_ptcp_packet_body_bytes()
-        
-    def handle_packet(self, packet: PtcpPacket) -> None:
-        packet_identifier = packet.get_packet_identifier()
-        
-        if isinstance(packet.get_body(), PtcpPacketBodySyn):
-            self._packet_identifier_expected = packet_identifier
-            self._buffer = {}
-        elif packet_identifier.get_ptcp_packet_identifier_int() == self._packet_identifier_expected.get_ptcp_packet_identifier_int():
-            self._queue.append(packet)
-            self._packet_identifier_expected = self._packet_identifier_expected.decrement()
+            body = self._queue_send.popleft()
             
-            while self._packet_identifier_expected.get_ptcp_packet_identifier_int() in self._buffer:
-                self._queue.append(self._buffer[self._packet_identifier_expected.get_ptcp_packet_identifier_int()])
-                self._buffer.pop(self._packet_identifier_expected.get_ptcp_packet_identifier_int())
-        else:
-            self._buffer[packet_identifier.get_ptcp_packet_identifier_int()] = packet
+            packet = PtcpPacket(
+                offset_sent=self._offset_sent,
+                offset_received=self._offset_received,
+                packet_identifier=self._determine_packet_identifier(),
+                packet_identifier_local=self._packet_identifier_local,
+                packet_identifier_local_received_last=self._packet_identifier_local_received_last,
+                body=body,
+            )
             
-    def send(self, data: bytes, realm_identifier: RealmIdentifier = None) -> None:
-        if realm_identifier is None:
-            realm_identifier = RealmIdentifier.ZERO()
-        else:
-            # Realm identifier already set.
-            pass
+            self._send_packet(packet)
         
-        body = PtcpPacketBodyData(realm_identifier, data)
-        
-        packet = PtcpPacket(
-            offset_sent=self._offset_sent,
-            offset_received=self._offset_received,
-            packet_identifier=self._determine_packet_identifier(),
-            packet_identifier_local=self._packet_identifier_local,
-            packet_identifier_local_received_last=self._packet_identifier_local_received_last,
-            body=body,
-        )
-
-        self._send_packet(packet)
-        
-    def send_syn(self) -> None:
+    def _send_syn(self) -> None:
         packet = PtcpPacket(
             offset_sent=self._offset_sent,
             offset_received=self._offset_received,
@@ -106,29 +156,11 @@ class PtcpSocket:
         
         self._send_packet(packet)
     
-    def send_heartbeat(self) -> None:
-        packet = PtcpPacket(
-            offset_sent=self._offset_sent,
-            offset_received=self._offset_received,
-            packet_identifier=self._determine_packet_identifier(),
-            packet_identifier_local=self._packet_identifier_local,
-            packet_identifier_local_received_last=self._packet_identifier_local_received_last,
-            body=PtcpPacketBodyHeartbeat()
-        )
-        
-        self._send_packet(packet)
+    def _send_heartbeat(self) -> None:
+        self._queue_send.append(PtcpPacketBodyHeartbeat())
     
-    def send_bind(self, realm_identifier: RealmIdentifier, port: int) -> None:
-        packet = PtcpPacket(
-            offset_sent=self._offset_sent,
-            offset_received=self._offset_received,
-            packet_identifier=self._determine_packet_identifier(),
-            packet_identifier_local=self._packet_identifier_local,
-            packet_identifier_local_received_last=self._packet_identifier_local_received_last,
-            body=PtcpPacketBodyBind(realm_identifier, port),
-        )
-        
-        self._send_packet(packet)
+    def send_bind(self, port: int) -> None:
+        self._queue_send.append(PtcpPacketBodyBind(self._realm_identifier, port))
     
     def _send_ack(self) -> None:
         packet = PtcpPacket(
@@ -148,7 +180,8 @@ class PtcpSocket:
         self._offset_sent += len(body)
         self._packet_identifier_local = self._packet_identifier_local.increment()
         
-        self.update_number_of_packet_sent_if_needed(body)
+        self._update_number_of_packet_sent_if_needed(body)
+        self._add_packet_to_all_packet_unacked_if_needed(packet)
         
         # TODO: dit weghalen
         print(f"TX: {packet}")
@@ -158,7 +191,7 @@ class PtcpSocket:
     def _determine_packet_identifier(self) -> PtcpPacketIdentifier:
         return PtcpPacketIdentifier.create_maximum().subtract(self._number_of_packet_sent)
 
-    def update_number_of_packet_sent_if_needed(self, packet_body: PtcpPacketBody) -> None:
+    def _update_number_of_packet_sent_if_needed(self, packet_body: PtcpPacketBody) -> None:
         if packet_body.is_empty():
             # Empty packets don't count.
             pass
@@ -167,4 +200,30 @@ class PtcpSocket:
             pass
         else:
             self._number_of_packet_sent += 1
+    
+    def _add_packet_to_all_packet_unacked_if_needed(self, packet: PtcpPacket) -> None:
+        if packet.get_body().is_empty():
+            # Ack packets don't get acked.
+            pass
+        else:
+            self._all_packet_unacked[self._offset_sent] = (packet, time.time())
+    
+    def _handle_retransmit(self) -> None:
+        time_now = time.time()
+        
+        for offset, (packet, timestamp) in list(self._all_packet_unacked.items()):
+            if time_now - timestamp > self.TIMEOUT_NUMBER_OF_SECOND_ACK:
+                print(f"Retransmitting offset {offset}")
+                self._socket_udp.send(packet.get_ptcp_packet_bytes())
+                self._all_packet_unacked[offset] = (packet, time_now)
+    
+    def _handle_heartbeat(self) -> None:
+        time_now = time.time()
+        
+        if time_now - self._time_heartbeat_last > self.TIME_NUMBER_OF_SECOND_HEARTBEAT_INTERVAL:
+            self._send_heartbeat()
+            self._time_heartbeat_last = time_now
+        else:
+            # Don't send heartbeat.
+            pass
    

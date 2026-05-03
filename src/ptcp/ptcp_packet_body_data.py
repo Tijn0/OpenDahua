@@ -1,4 +1,4 @@
-from struct import pack
+from struct import pack, unpack
 
 from src.object.realm_identifier import RealmIdentifier
 from src.ptcp.ptcp_packet_body import PtcpPacketBody
@@ -19,7 +19,7 @@ class PtcpPacketBodyData(PtcpPacketBody):
     
     @classmethod
     def create_from_bytes(cls, body_bytes) -> PtcpPacketBodyData:
-        from struct import unpack
+        # TODO: refactor deze zielige functie.
         if len(body_bytes) < 12:
             raise ValueError("Body too short")
         
@@ -33,3 +33,7 @@ class PtcpPacketBodyData(PtcpPacketBody):
         
         return cls(RealmIdentifier(realm_int), payload)
     
+    def get_data_bytes(self) -> bytes:
+        # TODO: refactor deze zielige functie.
+        return self._ptcp_packet_body_bytes[12:]
+
