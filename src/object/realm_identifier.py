@@ -10,15 +10,22 @@ class RealmIdentifier:
     # Byte constants.
     BYTE_LENGTH_REALM_IDENTIFIER = 4
     BYTE_ORDER_REALM_IDENTIFIER: Literal["big", "little"] = "big"
+    
+    # Realm identifier constants.
+    REALM_IDENTIFIER_ZERO = 0
 
     def __init__(self, realm_identifier_int: int):
         self._realm_identifier_int: int = realm_identifier_int
     
-    @staticmethod
-    def create_random() -> RealmIdentifier:
+    @classmethod
+    def create_random(cls) -> RealmIdentifier:
         return RealmIdentifier(
-            random.randint(RealmIdentifier.MINIMUM_REALM_IDENTIFIER, RealmIdentifier.MAXIMUM_REALM_IDENTIFIER),
+            random.randint(cls.MINIMUM_REALM_IDENTIFIER, cls.MAXIMUM_REALM_IDENTIFIER),
         )
+    
+    @classmethod
+    def ZERO(cls) -> RealmIdentifier:
+        return cls(cls.REALM_IDENTIFIER_ZERO)
     
     def get_realm_identifier_int(self) -> int:
         return self._realm_identifier_int

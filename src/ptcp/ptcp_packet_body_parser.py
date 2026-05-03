@@ -1,0 +1,47 @@
+from src.ptcp.ptcp_packet_body import PtcpPacketBody
+from src.ptcp.ptcp_packet_body_connection_status import PtcpPacketBodyPortBindConnectionStatus
+from src.ptcp.ptcp_packet_body_data import PtcpPacketBodyData
+from src.ptcp.ptcp_packet_body_empty import PtcpPacketBodyEmpty
+from src.ptcp.ptcp_packet_body_heartbeat import PtcpPacketBodyHeartbeat
+from src.ptcp.ptcp_packet_body_syn import PtcpPacketBodySyn
+from src.ptcp.ptcp_packet_type import PtcpPacketType
+
+
+class PtcpPacketBodyParser:
+    # Error constants.
+    ERROR_UNEXPECTED_PACKET_TYPE = "Unexpected packet type \"{packet_type:02X}\"."
+
+    # Body constants.
+    BODY_EMPTY = b""
+    
+    # Index constants.
+    INDEX_FIRST = 0
+    
+    @classmethod
+    def parse(cls, body_bytes: bytes) -> PtcpPacketBody:
+        if body_bytes == cls.BODY_EMPTY:
+            return PtcpPacketBodyEmpty()
+        else:
+            packet_type_bytes = cls._determine_packet_type(body_bytes)
+            
+            match packet_type_bytes:
+                case PtcpPacketType.DATA:
+                    return PtcpPacketBodyData.create_from_bytes(body_bytes)
+                case PtcpPacketType.SYN:
+                    return PtcpPacketBodySyn()
+                case PtcpPacketType.HEARTBEAT:
+                    return PtcpPacketBodyHeartbeat()
+                case PtcpPacketType.CONNECTION_STATUS:
+                    return PtcpPacketBodyPortBindConnectionStatus(body_bytes)
+                case _:
+                    raise Exception(cls.ERROR_UNEXPECTED_PACKET_TYPE.format(packet_type=packet_type_bytes))
+            
+    @classmethod
+    def _determine_packet_type(cls, body_bytes: bytes) -> PtcpPacketType:
+        packet_type_bytes: int = body_bytes[cls.INDEX_FIRST]
+        
+        try:
+            return PtcpPacketType(packet_type_bytes)
+        except ValueError:
+            raise Exception(cls.ERROR_UNEXPECTED_PACKET_TYPE.format(packet_type=packet_type_bytes))
+    

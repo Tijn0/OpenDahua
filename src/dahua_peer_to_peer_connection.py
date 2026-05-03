@@ -9,6 +9,7 @@ from src.object.cookie import Cookie
 from src.object.realm_identifier import RealmIdentifier
 from src.object.transaction_identifier import TransactionIdentifier
 from src.object.dahua_device import DahuaDevice
+from src.ptcp.socket_ptcp import SocketPtcp
 
 MAIN_SERVER = "www.easy4ipcloud.com"
 MAIN_PORT = 8800
@@ -224,41 +225,26 @@ class DahuaPeerToPeerConnection:
     
     
     def request(self) -> None:
-        self._remote_device.request_ptcp(self.PTCP_MESSAGE_SYN)
-        response = self._remote_device.read_ptcp()
-        assert response.body == self.PTCP_MESSAGE_SYN
+        socket_ptcp = SocketPtcp(self._remote_device)
         
+        socket_ptcp.send_syn()
+
         realm_identifier = RealmIdentifier.create_random()
         
-        self._remote_device.request_ptcp(
-            b"\x11\x00\x00\x00"
-            + realm_identifier.get_realm_identifier_bytes()
-            + b"\x00\x00\x00\x00"
-            # port 80
-            + b"\x00\x00\x00\x50"
-            + b"\x7f\x00\x00\x01",
-        )
-
-        response = self._remote_device.read_ptcp()
-
-        assert response.body[0] == 0x12
+        socket_ptcp.send_bind(realm_identifier, 80)
+        response = socket_ptcp.receive(timeout=0.1)
         
         last_heartbeat = time.time()
         
+        socket_ptcp.send(b"GET / HTTP/1.1\r\n\r\n", realm_identifier)
         while True:
             try:
-                response = self._remote_device.read_ptcp(timeout=0.1)
-                
-                print(response)
-                print(datetime.now())
+                response = socket_ptcp.receive(timeout=0.1)
             except socket.timeout:
                 pass
-            
+
             now = time.time()
-            
+
             if now - last_heartbeat > 2:
-                print("sending heartbeat")
-                self._remote_device.request_ptcp(self.PTCP_MESSAGE_HEARTBEAT)
-                self._remote_device.request_ptcp()
-                self._remote_device.request_ptcp(self.PTCP_MESSAGE_SYN)
+                socket_ptcp.send_heartbeat()
                 last_heartbeat = now
