@@ -95,8 +95,7 @@ class SignalingClient:
         response = self._remote_main.request(
             self.ENDPOINT_PEER_TO_PEER_SERVER_INFO.format(serial_number=self._device.get_serial_number()))
         
-        address_server_peer_to_peer = Address(
-            response[self.FIELD_DATA][self.FIELD_BODY][self.FIELD_ADDRESS_SERVER_PEER_TO_PEER])
+        address_server_peer_to_peer = Address(response[self.FIELD_DATA][self.FIELD_BODY][self.FIELD_ADDRESS_SERVER_PEER_TO_PEER])
         
         return UDP.create_from_address(address_server_peer_to_peer)
     
