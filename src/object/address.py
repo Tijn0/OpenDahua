@@ -39,3 +39,4 @@ class Address:
         address_encoded = port_encoded + ip_encoded
         
         return bytes(0xFF - byte for byte in address_encoded)
+    
