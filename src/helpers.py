@@ -170,13 +170,6 @@ class UDP(socket.socket):
         self.rhost = host
         self.rport = port
 
-        self.ptcp_sent = 0
-        self.ptcp_recv = 0
-        self.ptcp_count = 0
-        self.ptcp_id = 0
-
-        self.rmid = 0
-
     @staticmethod
     def create_from_address(address: Address) -> UDP:
         return UDP(address.get_ip(), address.get_port())
@@ -254,64 +247,7 @@ Content-Length: {len(body)}
         self.send(req.replace("\n", "\r\n").encode())
 
         return self.read() if should_read else None
-
-    def read_ptcp(self, timeout=None):
-        data = self.recv(timeout=timeout)
-
-        if self.debug:
-            print(f":{self.lport} <<< {self.rhost}:{self.rport}")
-            # print(data)
-
-        response = PTCP.parse(data)
-        self.ptcp_recv += len(response.body)
-        self.rmid = response.lmid
-
-        if self.debug:
-            # print("Parsed <<<")
-            print(response)
-
-        while response.body == self.PTCP_MESSAGE_EMPTY:
-            # Sometimes we get empty messages from our friends at Dahua.
-            response = self.read_ptcp()
-        
-        return response
-
-    def request_ptcp(self, body=b""):
-        ptcp = PTCP(
-            self.ptcp_sent,
-            self.ptcp_recv,
-            0x0002FFFF if body == b"\x00\x03\x01\x00" else 0x0000FFFF - self.ptcp_count,
-            self.ptcp_id,
-            self.rmid,
-            body,
-        )
-
-        self.ptcp_sent += len(ptcp.body)
-        self.ptcp_id += 1
-        if len(ptcp.body) > 0 and ptcp.body != b"\x00\x03\x01\x00":
-            self.ptcp_count += 1
-
-        if self.debug:
-            print(f":{self.lport} >>> {self.rhost}:{self.rport}")
-            print(ptcp)
-        self.send(bytes(ptcp))
     
-    def wait_for_ptcp(self, expected_type):
-        while True:
-            res = self.read_ptcp()
-            
-            if len(res.body) == 0:
-                continue
-            
-            ptype = res.body[0]
-            print(f"PTCP type: {ptype:02X}")
-            
-            self.request_ptcp()
-            
-            if ptype == expected_type:
-                return res
-            
-            
     def set_ip(self, ip: str) -> None:
         self.rhost = ip
     
