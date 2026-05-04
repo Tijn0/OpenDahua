@@ -4,6 +4,7 @@ import time
 from queue import Queue
 
 from src.helpers import UDP
+from src.logger import Logger
 from src.object.realm_identifier import RealmIdentifier
 from src.ptcp.ptcp_packet import PtcpPacket
 from src.ptcp.ptcp_packet_body import PtcpPacketBody
@@ -23,14 +24,15 @@ class PtcpSocket:
     # Logging constants.
     LOGGING_DROPPING_NON_CONTIGUOUS_PACKET = "Dropping non contiguous packet."
     LOGGING_RETRANSMITTING_PACKET = "Retransmitting packet at offset {offset}"
+    LOGGING_TRANSMIT = "TX: {packet}"
+    LOGGING_RECEIVE = "RX: {packet}"
 
     # Time constants.
-    TIME_NUMBER_OF_SECOND_RECEIVE_INTERVAL = 0.001
     TIME_NUMBER_OF_SECOND_HEARTBEAT_INTERVAL = 2
 
     # Timeout constants.
-    TIMEOUT_NUMBER_OF_SECOND_RECEIVE = 0.05
-    TIMEOUT_NUMBER_OF_SECOND_ACK = 0.05
+    TIMEOUT_NUMBER_OF_SECOND_RECEIVE = 0.01
+    TIMEOUT_NUMBER_OF_SECOND_ACK = 0.20
 
     # Size constants.
     SIZE_BUFFER = 4096
@@ -84,18 +86,16 @@ class PtcpSocket:
     def _handle_receive(self) -> None:
         try:
             data = self._socket_udp.recv(self.SIZE_BUFFER, timeout=self.TIMEOUT_NUMBER_OF_SECOND_RECEIVE)
+            
+            packet = PtcpPacketParser.parse(data)
+            
+            Logger.debug(self.LOGGING_RECEIVE.format(packet=packet))
+            
+            self._handle_packet(packet)
         except TimeoutError:
             # Nothing to receive.
             return
     
-        packet = PtcpPacketParser.parse(data)
-        
-        # TODO: dit weghalen.
-        print(f"RX: {packet}")
-        
-        self._handle_packet(packet)
-        
-        
     def _handle_packet(self, packet: PtcpPacket) -> None:
         self._packet_identifier_local_received_last = packet.get_packet_identifier_local()
         
@@ -119,7 +119,7 @@ class PtcpSocket:
                 self._send_ack()
         
         else:
-            print(self.LOGGING_DROPPING_NON_CONTIGUOUS_PACKET)
+            Logger.warning(self.LOGGING_DROPPING_NON_CONTIGUOUS_PACKET)
             
             
     def _handle_ack(self, offset_acked: int) -> None:
@@ -223,8 +223,7 @@ class PtcpSocket:
         self._update_number_of_packet_sent_if_needed(body)
         self._add_packet_to_all_packet_unacked_if_needed(packet)
         
-        # TODO: dit weghalen
-        print(f"TX: {packet}")
+        Logger.debug(self.LOGGING_TRANSMIT.format(packet=packet))
         
         self._socket_udp.send(packet.get_ptcp_packet_bytes())
     

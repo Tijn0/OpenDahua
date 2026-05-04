@@ -1,6 +1,7 @@
 import random
 
 from src.helpers import UDP
+from src.logger import Logger
 from src.ptcp.ptcp_packet_parser import PtcpPacketParser
 
 
@@ -18,7 +19,7 @@ class TestUdpSocket(UDP):
             else:
                 # Simulate dropped packet
                 packet = PtcpPacketParser.parse(bytes(data))
-                print(f"TX: Dropping {packet}")
+                Logger.debug("TX: Dropping {packet}".format(packet=packet))
                 return 0
         else:
             # Ignore non PTCP traffic.
@@ -33,7 +34,7 @@ class TestUdpSocket(UDP):
             else:
                 # Simulate dropped packet
                 packet = PtcpPacketParser.parse(data)
-                print(f"RX: Dropping {packet}")
+                Logger.debug("RX: Dropping {packet}".format(packet=packet))
                 raise TimeoutError
         else:
             # Ignore non PTCP traffic.

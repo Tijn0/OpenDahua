@@ -1,7 +1,8 @@
-from dahua_peer_to_peer_connection import DahuaPeerToPeerConnection
 import os
 
+from src.logger import Logger
 from src.object.dahua_device import DahuaDevice
+from src.signaling_client import SignalingClient
 
 SERIAL_NUMBER = os.getenv("SERIAL_NUMBER")
 USERNAME = os.getenv("USERNAME")
@@ -13,9 +14,20 @@ def main() -> None:
         username=USERNAME,
         password=PASSWORD,
     )
-    connection = DahuaPeerToPeerConnection(device)
+    signaling_client = SignalingClient(device)
     
-    connection.connect()
+    ptcp_socket = signaling_client.connect()
+    
+    ptcp_socket.send_bind(80)
+    
+    ptcp_socket.send(b"GET / HTTP/1.1\r\n\r\n")
+    while True:
+        try:
+            response = ptcp_socket.recv(timeout=0.1)
+            
+            Logger.info(response)
+        except TimeoutError:
+            pass
     
 if __name__ == '__main__':
     main()
