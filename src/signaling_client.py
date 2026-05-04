@@ -5,7 +5,6 @@ from src.object.authentication_identifier import AuthenticationIdentifier
 from src.object.cookie import Cookie
 from src.object.transaction_identifier import TransactionIdentifier
 from src.ptcp.ptcp_socket import PtcpSocket
-from test.test_udp_socket import TestUdpSocket
 
 
 class SignalingClient:
