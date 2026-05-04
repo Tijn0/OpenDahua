@@ -129,6 +129,7 @@ class PtcpSocket:
         else:
             self._packet_identifier_local_received_last = packet.get_packet_identifier_local()
 
+
     def _handle_ack(self, offset_acked: int) -> None:
         all_offset_acked: list[int] = [offset for offset in self._all_packet_unacked if offset <= offset_acked]
         
