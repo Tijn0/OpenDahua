@@ -77,8 +77,8 @@ class PtcpSocket:
         self._send_syn()
         
         while True:
-            self._handle_receive()
             self._handle_send()
+            self._handle_receive()
             self._handle_retransmit()
             self._handle_heartbeat()
         
@@ -97,7 +97,7 @@ class PtcpSocket:
             return
     
     def _handle_packet(self, packet: PtcpPacket) -> None:
-        self._packet_identifier_local_received_last = packet.get_packet_identifier_local()
+        self._update_packet_identifier_local_received_last_if_needed(packet)
         
         self._handle_ack(packet.get_offset_received())
         
@@ -113,7 +113,7 @@ class PtcpSocket:
             self._offset_received += len(packet.get_body())
             
             if packet.get_body().is_empty():
-                # Don't ack acks
+                # Don't ack acks.
                 pass
             else:
                 self._send_ack()
@@ -122,6 +122,13 @@ class PtcpSocket:
             Logger.warning(self.LOGGING_DROPPING_NON_CONTIGUOUS_PACKET)
             
             
+    def _update_packet_identifier_local_received_last_if_needed(self, packet: PtcpPacket) -> None:
+        if packet.get_body().is_empty():
+            # Acks don't count as last seen packet identifiers.
+            pass
+        else:
+            self._packet_identifier_local_received_last = packet.get_packet_identifier_local()
+
     def _handle_ack(self, offset_acked: int) -> None:
         all_offset_acked: list[int] = [offset for offset in self._all_packet_unacked if offset <= offset_acked]
         
