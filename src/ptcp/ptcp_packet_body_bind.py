@@ -1,8 +1,8 @@
 from struct import pack, unpack
 import socket
 
-from src.object.realm_identifier import RealmIdentifier
 from src.ptcp.ptcp_packet_body import PtcpPacketBody
+from src.ptcp.ptcp_realm_identifier import PtcpRealmIdentifier
 
 
 class PtcpPacketBodyBind(PtcpPacketBody):
@@ -20,7 +20,7 @@ class PtcpPacketBodyBind(PtcpPacketBody):
     
     def __init__(
         self,
-        realm_identifier: RealmIdentifier,
+        realm_identifier: PtcpRealmIdentifier,
         port: int,
         ip: str = IP_LOOPBACK,
     ):
@@ -29,7 +29,7 @@ class PtcpPacketBodyBind(PtcpPacketBody):
         body = pack(
             self.FORMAT,
             self.TYPE,
-            realm_identifier.get_realm_identifier_int(),
+            realm_identifier.get_ptcp_realm_identifier_int(),
             self.PADDING,
             port,
             ip_int,

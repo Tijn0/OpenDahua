@@ -1,7 +1,7 @@
 from struct import pack, unpack
 
-from src.object.realm_identifier import RealmIdentifier
 from src.ptcp.ptcp_packet_body import PtcpPacketBody
+from src.ptcp.ptcp_realm_identifier import PtcpRealmIdentifier
 
 
 class PtcpPacketBodyData(PtcpPacketBody):
@@ -11,9 +11,9 @@ class PtcpPacketBodyData(PtcpPacketBody):
     # Format constants.
     FORMAT_HEADER = "!LLL"
 
-    def __init__(self, realm_identifier: RealmIdentifier, payload: bytes):
+    def __init__(self, realm_identifier: PtcpRealmIdentifier, payload: bytes):
         length = len(payload) | self.FLAG_PACKET_DATA
-        ptcp_packet_body_bytes = pack(self.FORMAT_HEADER, length, realm_identifier.get_realm_identifier_int(), 0) + payload
+        ptcp_packet_body_bytes = pack(self.FORMAT_HEADER, length, realm_identifier.get_ptcp_realm_identifier_int(), 0) + payload
         
         super().__init__(ptcp_packet_body_bytes)
     
@@ -31,7 +31,7 @@ class PtcpPacketBodyData(PtcpPacketBody):
         if len(payload) != length:
             raise ValueError("Invalid length")
         
-        return cls(RealmIdentifier(realm_int), payload)
+        return cls(PtcpRealmIdentifier(realm_int), payload)
     
     def get_data_bytes(self) -> bytes:
         # TODO: refactor deze zielige functie.

@@ -5,7 +5,6 @@ from queue import Queue
 
 from src.helpers import UDP
 from src.logger import Logger
-from src.object.realm_identifier import RealmIdentifier
 from src.ptcp.ptcp_packet import PtcpPacket
 from src.ptcp.ptcp_packet_body import PtcpPacketBody
 from src.ptcp.ptcp_packet_body_bind import PtcpPacketBodyBind
@@ -15,6 +14,7 @@ from src.ptcp.ptcp_packet_body_heartbeat import PtcpPacketBodyHeartbeat
 from src.ptcp.ptcp_packet_body_syn import PtcpPacketBodySyn
 from src.ptcp.ptcp_packet_identifier import PtcpPacketIdentifier
 from src.ptcp.ptcp_packet_parser import PtcpPacketParser
+from src.ptcp.ptcp_realm_identifier import PtcpRealmIdentifier
 
 
 class PtcpSocket:
@@ -46,7 +46,7 @@ class PtcpSocket:
         self._number_of_packet_sent = 0
         self._packet_identifier_local = PtcpPacketIdentifier.ZERO()
         self._packet_identifier_local_received_last = PtcpPacketIdentifier.ZERO()
-        self._realm_identifier = RealmIdentifier.create_random()
+        self._realm_identifier = PtcpRealmIdentifier.create_random()
 
         self._all_packet_unacked = {}
         
