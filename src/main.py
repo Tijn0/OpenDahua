@@ -1,7 +1,7 @@
 import os
 
+from src.dahua.dahua_device import DahuaDevice
 from src.logger import Logger
-from src.object.dahua_device import DahuaDevice
 from src.signaling_client import SignalingClient
 
 SERIAL_NUMBER = os.getenv("SERIAL_NUMBER")

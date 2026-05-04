@@ -1,8 +1,8 @@
+from src.dahua.dahua_device import DahuaDevice
 from src.helpers import UDP, get_dec, get_auth, get_key, get_enc, get_nonce
 from src.object.address import Address
 from src.object.authentication_identifier import AuthenticationIdentifier
 from src.object.cookie import Cookie
-from src.object.dahua_device import DahuaDevice
 from src.object.transaction_identifier import TransactionIdentifier
 from src.ptcp.ptcp_socket import PtcpSocket
 from test.test_udp_socket import TestUdpSocket
