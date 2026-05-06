@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 
 from src.object.log_level import LogLevel
@@ -8,7 +9,8 @@ class Logger:
     ERROR_UNEXPECTED_LOG_LEVEL = "Unexpected log level \"{log_level}\"."
     
     # Format constants.
-    FORMAT_MESSAGE = "[{prefix}] - {message}"
+    FORMAT_MESSAGE = "{timestamp} [{log_level}] - {message}"
+    FORMAT_TIMESTAMP = "%Y-%m-%d %H:%M:%S.%f"
     
     # Log level.
     LOG_LEVEL = LogLevel(os.getenv("LOG_LEVEL"))
@@ -37,7 +39,9 @@ class Logger:
     @classmethod
     def _log(cls, log_level: LogLevel, message: str | bytes) -> None:
         if cls._should_log(log_level):
-            print(cls.FORMAT_MESSAGE.format(prefix=log_level.value, message=message))
+            timestamp = cls._generate_timestamp_string()
+            
+            print(cls.FORMAT_MESSAGE.format(timestamp=timestamp, log_level=log_level.value, message=message))
         else:
             # Don't log.
             pass
@@ -63,3 +67,8 @@ class Logger:
             case _:
                 raise Exception(cls.ERROR_UNEXPECTED_LOG_LEVEL.format(log_level=log_level.value))
             
+            
+    @classmethod
+    def _generate_timestamp_string(cls) -> str:
+        return datetime.now().strftime(cls.FORMAT_TIMESTAMP)
+    
