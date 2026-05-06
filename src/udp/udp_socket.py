@@ -40,7 +40,7 @@ class UdpSocket:
     
     
     @classmethod
-    async def create_by_socket(cls, socket: UDP) -> UdpSocket:
+    async def create_from_socket(cls, socket: UDP) -> UdpSocket:
         loop = asyncio.get_running_loop()
         
         address_remote = Address.create_from_ip_and_port(socket.rhost, socket.rport)

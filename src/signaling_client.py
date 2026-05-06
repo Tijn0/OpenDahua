@@ -193,7 +193,7 @@ class SignalingClient:
             
             remote_device.recv(timeout=self.TIME_NUMBER_OF_SECOND_TIMEOUT_HANDSHAKE)
         
-        udp_socket = await UdpSocket.create_by_socket(remote_device)
+        udp_socket = await UdpSocket.create_from_socket(remote_device)
         
         return PtcpSocket(udp_socket)
         
