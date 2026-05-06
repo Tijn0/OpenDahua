@@ -5,7 +5,7 @@ from typing import Any
 
 class UdpProtocol(asyncio.DatagramProtocol):
     def __init__(self):
-        self.packet_queue = asyncio.Queue()
+        self.queue_receive = asyncio.Queue()
         self._error: Exception|None = None
         
     def connection_made(self, transport: DatagramTransport) -> None:
@@ -15,11 +15,11 @@ class UdpProtocol(asyncio.DatagramProtocol):
         pass
     
     def datagram_received(self, data: bytes, addr: tuple[str|Any, int]) -> None:
-        self.packet_queue.put_nowait(data)
+        self.queue_receive.put_nowait(data)
         
     def error_received(self, exc: Exception) -> None:
         self._error = exc
-        self.packet_queue.put_nowait(None)
+        self.queue_receive.put_nowait(None)
         
     def raise_if_error(self) -> None:
         if self._error is None:

@@ -59,7 +59,7 @@ class UdpSocket:
 
     
     async def receive(self) -> bytes:
-        data = await self._protocol.packet_queue.get()
+        data = await self._protocol.queue_receive.get()
         self._protocol.raise_if_error()
         
         if data is None:
