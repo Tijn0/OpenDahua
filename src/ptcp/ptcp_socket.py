@@ -28,7 +28,6 @@ class PtcpSocket:
     TIME_NUMBER_OF_SECOND_HEARTBEAT_INTERVAL = 2
 
     # Timeout constants.
-    TIMEOUT_NUMBER_OF_SECOND_RECEIVE = 0.01
     TIMEOUT_NUMBER_OF_SECOND_ACK = 0.20
 
     # Size constants.
