@@ -25,7 +25,7 @@ class PtcpSocket:
     LOGGING_RECEIVE = "RX: {packet}"
 
     # Time constants.
-    TIME_NUMBER_OF_SECOND_HEARTBEAT_INTERVAL = 2
+    TIME_NUMBER_OF_SECOND_HEARTBEAT_INTERVAL = 5
 
     # Timeout constants.
     TIMEOUT_NUMBER_OF_SECOND_ACK = 0.20
