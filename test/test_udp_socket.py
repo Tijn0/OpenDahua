@@ -1,32 +1,47 @@
+import asyncio
 import random
 
 from src.helpers import UDP
 from src.logger import Logger
+from src.object.address import Address
 from src.ptcp.ptcp_packet_parser import PtcpPacketParser
+from src.udp.udp_protocol import UdpProtocol
+from src.udp.udp_socket import UdpSocket
 
 
-class TestUdpSocket(UDP):
+class TestUdpSocket(UdpSocket):
     # Packet drop rate constants.
     PACKET_DROP_RATE = 0.25
     
-    def __init__(self, host: str, port: int):
-        super().__init__(host, port)
+    @classmethod
+    async def create_from_socket(cls, socket: UDP) -> UdpSocket:
+        loop = asyncio.get_running_loop()
         
-    def send(self, data) -> int:
+        address_remote = Address.create_from_ip_and_port(socket.rhost, socket.rport)
+        
+        protocol = UdpProtocol()
+        transport, _ = await loop.create_datagram_endpoint(
+            lambda: protocol,
+            sock=socket,
+        )
+        
+        return TestUdpSocket(transport, protocol, address_remote)
+    
+    def send(self, data) -> None:
         if self._is_packet_ptcp(bytes(data)):
             if random.random() >= self.PACKET_DROP_RATE:
-                return super().send(data)
+                super().send(data)
             else:
                 # Simulate dropped packet
                 packet = PtcpPacketParser.parse(bytes(data))
                 Logger.debug("TX: Dropping {packet}".format(packet=packet))
-                return 0
         else:
             # Ignore non PTCP traffic.
-            return super().send(data)
+            super().send(data)
         
-    def recv(self, bufsize=4096, timeout=None):
-        data = super().recv(bufsize=bufsize, timeout=timeout)
+        
+    async def receive(self) -> bytes:
+        data = await super().receive()
 
         if self._is_packet_ptcp(data):
             if random.random() >= self.PACKET_DROP_RATE:
@@ -35,10 +50,12 @@ class TestUdpSocket(UDP):
                 # Simulate dropped packet
                 packet = PtcpPacketParser.parse(data)
                 Logger.debug("RX: Dropping {packet}".format(packet=packet))
-                raise TimeoutError
+                
+                return await self.receive()
         else:
             # Ignore non PTCP traffic.
             return data
+    
     
     @staticmethod
     def _is_packet_ptcp(data: bytes) -> bool:
