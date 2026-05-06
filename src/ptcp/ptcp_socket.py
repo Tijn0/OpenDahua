@@ -1,9 +1,5 @@
-import _queue
-import threading
-import time
-from queue import Queue
+import asyncio
 
-from src.helpers import UDP
 from src.logger import Logger
 from src.ptcp.ptcp_packet import PtcpPacket
 from src.ptcp.ptcp_packet_body import PtcpPacketBody
@@ -15,11 +11,12 @@ from src.ptcp.ptcp_packet_body_syn import PtcpPacketBodySyn
 from src.ptcp.ptcp_packet_identifier import PtcpPacketIdentifier
 from src.ptcp.ptcp_packet_parser import PtcpPacketParser
 from src.ptcp.ptcp_realm_identifier import PtcpRealmIdentifier
+from src.udp.udp_socket import UdpSocket
 
 
 class PtcpSocket:
     # Error constants.
-    ERROR_DATA_TOO_LARGE = "The data is too large. Fix me by implementing packet chunking."
+    ERROR_SIZE_DATA_EXCEEDING_MAXIMUM = "The data is too large. Fix me by implementing packet chunking."
     
     # Logging constants.
     LOGGING_DROPPING_NON_CONTIGUOUS_PACKET = "Dropping non contiguous packet."
@@ -35,66 +32,79 @@ class PtcpSocket:
     TIMEOUT_NUMBER_OF_SECOND_ACK = 0.20
 
     # Size constants.
-    SIZE_BUFFER = 4096
-    SIZE_MAXIMUM_DATA = 1280
+    SIZE_DATA_MAXIMUM = 1280
 
-    def __init__(self, socket_udp: UDP):
-        self._socket_udp: UDP = socket_udp
+    def __init__(self, udp_socket: UdpSocket):
+        self._udp_socket: UdpSocket = udp_socket
         
         self._offset_sent = 0
         self._offset_received = 0
-        self._number_of_packet_sent = 0
+        self._packet_identifier = PtcpPacketIdentifier.create_maximum()
         self._packet_identifier_local = PtcpPacketIdentifier.ZERO()
         self._packet_identifier_local_received_last = PtcpPacketIdentifier.ZERO()
         self._realm_identifier = PtcpRealmIdentifier.create_random()
 
         self._all_packet_unacked = {}
         
-        self._queue_receive: Queue[bytes] = Queue()
-        self._queue_send: Queue[PtcpPacketBody] = Queue()
+        self._queue_receive: asyncio.Queue[bytes] = asyncio.Queue()
+        self._queue_send: asyncio.Queue[PtcpPacketBody] = asyncio.Queue()
         
-        self._time_heartbeat_last = time.time()
+        self._all_task = []
         
-        self._connection_thread = threading.Thread(target=self._connection_loop, daemon=True)
-        self._connection_thread.start()
+        
+    async def start(self) -> None:
+        self._send_syn()
+        self._all_task = [
+            asyncio.create_task(self._loop_send()),
+            asyncio.create_task(self._loop_receive()),
+            asyncio.create_task(self._loop_retransmit()),
+            asyncio.create_task(self._loop_heartbeat()),
+        ]
+        
+
+    async def _loop_send(self) -> None:
+        while True:
+            body = await self._queue_send.get()
+            self._send_body(body)
+    
+    
+    async def _loop_receive(self) -> None:
+        while True:
+            data = await self._udp_socket.receive()
+            self._handle_receive(data)
+    
+    
+    async def _loop_retransmit(self) -> None:
+        while True:
+            await asyncio.sleep(self.TIMEOUT_NUMBER_OF_SECOND_ACK)
+            self._handle_retransmit()
+    
+    
+    async def _loop_heartbeat(self) -> None:
+        while True:
+            await asyncio.sleep(self.TIME_NUMBER_OF_SECOND_HEARTBEAT_INTERVAL)
+            self._send_heartbeat()
     
     
     def send(self, data: bytes) -> None:
-        if len(data) > self.SIZE_MAXIMUM_DATA:
-            raise Exception(self.ERROR_DATA_TOO_LARGE)
+        if len(data) > self.SIZE_DATA_MAXIMUM:
+            raise Exception(self.ERROR_SIZE_DATA_EXCEEDING_MAXIMUM)
         else:
-            self._queue_send.put(PtcpPacketBodyData(self._realm_identifier, data))
+            self._queue_send.put_nowait(PtcpPacketBodyData(self._realm_identifier, data))
     
     
-    def recv(self, timeout: int|float = None) -> bytes:
-        try:
-            return self._queue_receive.get(timeout=timeout)
-        except _queue.Empty:
-            raise TimeoutError
+    async def receive(self, timeout: int | float = None) -> bytes:
+        # TODO: timeout weer werkend maken
+        return await self._queue_receive.get()
         
         
-    def _connection_loop(self) -> None:
-        self._send_syn()
+    def _handle_receive(self, data: bytes) -> None:
+        packet = PtcpPacketParser.parse(data)
         
-        while True:
-            self._handle_send()
-            self._handle_receive()
-            self._handle_retransmit()
-            self._handle_heartbeat()
+        Logger.debug(self.LOGGING_RECEIVE.format(packet=packet))
         
-        
-    def _handle_receive(self) -> None:
-        try:
-            data = self._socket_udp.recv(self.SIZE_BUFFER, timeout=self.TIMEOUT_NUMBER_OF_SECOND_RECEIVE)
-            
-            packet = PtcpPacketParser.parse(data)
-            
-            Logger.debug(self.LOGGING_RECEIVE.format(packet=packet))
-            
-            self._handle_packet(packet)
-        except TimeoutError:
-            # Nothing to receive.
-            return
+        self._handle_packet(packet)
+    
     
     def _handle_packet(self, packet: PtcpPacket) -> None:
         self._update_packet_identifier_local_received_last_if_needed(packet)
@@ -105,7 +115,7 @@ class PtcpSocket:
             packet_body = packet.get_body()
             
             if isinstance(packet_body, PtcpPacketBodyData):
-                self._queue_receive.put(packet_body.get_data_bytes())
+                self._queue_receive.put_nowait(packet_body.get_data_bytes())
             else:
                 # Don't add non-data packets to the receive queue.
                 pass
@@ -137,23 +147,17 @@ class PtcpSocket:
             del self._all_packet_unacked[offset]
         
         
-    def _handle_send(self):
-        if self._queue_send.empty():
-            # Nothing to send.
-            pass
-        else:
-            body = self._queue_send.get()
-            
-            packet = PtcpPacket(
-                offset_sent=self._offset_sent,
-                offset_received=self._offset_received,
-                packet_identifier=self._determine_packet_identifier(),
-                packet_identifier_local=self._packet_identifier_local,
-                packet_identifier_local_received_last=self._packet_identifier_local_received_last,
-                body=body,
-            )
-            
-            self._send_packet(packet)
+    def _send_body(self, body: PtcpPacketBody) -> None:
+        packet = PtcpPacket(
+            offset_sent=self._offset_sent,
+            offset_received=self._offset_received,
+            packet_identifier=self._packet_identifier,
+            packet_identifier_local=self._packet_identifier_local,
+            packet_identifier_local_received_last=self._packet_identifier_local_received_last,
+            body=body,
+        )
+        
+        self._send_packet(packet)
             
         
     def _send_syn(self) -> None:
@@ -170,14 +174,14 @@ class PtcpSocket:
     
     
     def send_bind(self, port: int) -> None:
-        self._queue_send.put(PtcpPacketBodyBind(self._realm_identifier, port))
+        self._queue_send.put_nowait(PtcpPacketBodyBind(self._realm_identifier, port))
         
     
     def _send_ack(self) -> None:
         packet = PtcpPacket(
             offset_sent=self._offset_sent,
             offset_received=self._offset_received,
-            packet_identifier=self._determine_packet_identifier(),
+            packet_identifier=self._packet_identifier,
             packet_identifier_local=self._packet_identifier_local,
             packet_identifier_local_received_last=self._packet_identifier_local_received_last,
             body=PtcpPacketBodyEmpty()
@@ -191,35 +195,26 @@ class PtcpSocket:
             # Ack packets don't get acked.
             pass
         else:
-            self._all_packet_unacked[self._offset_sent] = (packet, time.time())
+            time_sent = asyncio.get_event_loop().time()
+            
+            self._all_packet_unacked[self._offset_sent] = (packet, time_sent)
     
     
     def _handle_retransmit(self) -> None:
-        time_now = time.time()
+        time_now = asyncio.get_event_loop().time()
         
         for offset, (packet, timestamp) in list(self._all_packet_unacked.items()):
             if time_now - timestamp > self.TIMEOUT_NUMBER_OF_SECOND_ACK:
-                print(self.LOGGING_RETRANSMITTING_PACKET.format(offset=offset))
-                self._socket_udp.send(packet.get_ptcp_packet_bytes())
+                Logger.warning(self.LOGGING_RETRANSMITTING_PACKET.format(offset=offset))
+                self._udp_socket.send(packet.get_ptcp_packet_bytes())
                 self._all_packet_unacked[offset] = (packet, time_now)
             else:
                 # We are still waiting for an ack.
                 pass
     
-    
-    def _handle_heartbeat(self) -> None:
-        time_now = time.time()
-        
-        if time_now - self._time_heartbeat_last > self.TIME_NUMBER_OF_SECOND_HEARTBEAT_INTERVAL:
-            self._send_heartbeat()
-            self._time_heartbeat_last = time_now
-        else:
-            # Don't send heartbeat.
-            pass
-
 
     def _send_heartbeat(self) -> None:
-        self._queue_send.put(PtcpPacketBodyHeartbeat())
+        self._queue_send.put_nowait(PtcpPacketBodyHeartbeat())
     
     
     def _send_packet(self, packet: PtcpPacket) -> None:
@@ -228,19 +223,15 @@ class PtcpSocket:
         self._offset_sent += len(body)
         self._packet_identifier_local = self._packet_identifier_local.increment()
         
-        self._update_number_of_packet_sent_if_needed(body)
+        self._update_packet_identifier_if_needed(body)
         self._add_packet_to_all_packet_unacked_if_needed(packet)
         
         Logger.debug(self.LOGGING_TRANSMIT.format(packet=packet))
         
-        self._socket_udp.send(packet.get_ptcp_packet_bytes())
+        self._udp_socket.send(packet.get_ptcp_packet_bytes())
     
     
-    def _determine_packet_identifier(self) -> PtcpPacketIdentifier:
-        return PtcpPacketIdentifier.create_maximum().subtract(self._number_of_packet_sent)
-    
-    
-    def _update_number_of_packet_sent_if_needed(self, packet_body: PtcpPacketBody) -> None:
+    def _update_packet_identifier_if_needed(self, packet_body: PtcpPacketBody) -> None:
         if packet_body.is_empty():
             # Empty packets don't count.
             pass
@@ -248,4 +239,11 @@ class PtcpSocket:
             # Syn packets don't count.
             pass
         else:
-            self._number_of_packet_sent += 1
+            self._packet_identifier = self._packet_identifier.decrement()
+
+
+    async def stop(self) -> None:
+        for task in self._all_task:
+            task.cancel()
+            
+        await asyncio.gather(*self._all_task, return_exceptions=True)

@@ -5,6 +5,7 @@ from src.object.authentication_identifier import AuthenticationIdentifier
 from src.object.cookie import Cookie
 from src.object.transaction_identifier import TransactionIdentifier
 from src.ptcp.ptcp_socket import PtcpSocket
+from src.udp.udp_socket import UdpSocket
 
 
 class SignalingClient:
@@ -67,12 +68,12 @@ class SignalingClient:
         # TODO: dit misschien op een betere plek neerzetten
         self._address_device_local: Address|None = None
 
-    def connect(self) -> PtcpSocket:
+    async def connect(self) -> PtcpSocket:
         self._probe()
         self._probe_device()
         remote_device: UDP = self._perform_udp_hole_punch()
         
-        return self._perform_ptcp_handshake(remote_device)
+        return await self._perform_ptcp_handshake(remote_device)
 
     def _probe(self) -> None:
         # TODO: Error als device niet bestaat.
@@ -147,7 +148,7 @@ class SignalingClient:
         return remote_device
     
     
-    def _perform_ptcp_handshake(self, remote_device: UDP) -> PtcpSocket:
+    async def _perform_ptcp_handshake(self, remote_device: UDP) -> PtcpSocket:
         address_device = Address.create_from_ip_and_port(remote_device.rhost, remote_device.rport)
         cookie = Cookie.create_random()
         
@@ -192,7 +193,9 @@ class SignalingClient:
             
             remote_device.recv(timeout=self.TIME_NUMBER_OF_SECOND_TIMEOUT_HANDSHAKE)
         
-        return PtcpSocket(remote_device)
+        udp_socket = await UdpSocket.create_by_socket(remote_device)
+        
+        return PtcpSocket(udp_socket)
         
     
     # TODO: Custom type van maken
