@@ -203,8 +203,8 @@ class PtcpSocket:
     def _handle_retransmit(self) -> None:
         time_now = asyncio.get_event_loop().time()
         
-        for offset, (packet, timestamp) in list(self._all_packet_unacked.items()):
-            if time_now - timestamp > self.TIMEOUT_NUMBER_OF_SECOND_ACK:
+        for offset, (packet, time_sent) in list(self._all_packet_unacked.items()):
+            if time_now - time_sent > self.TIMEOUT_NUMBER_OF_SECOND_ACK:
                 Logger.warning(self.LOGGING_RETRANSMITTING_PACKET.format(offset=offset))
                 self._udp_socket.send(packet.get_ptcp_packet_bytes())
                 self._all_packet_unacked[offset] = (packet, time_now)
