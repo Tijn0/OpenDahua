@@ -1,0 +1,3 @@
+
+class UdpSocketClosedError(Exception):
+    pass

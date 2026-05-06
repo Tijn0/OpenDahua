@@ -4,6 +4,7 @@ from asyncio import DatagramTransport
 from src.helpers import UDP
 from src.object.address import Address
 from src.udp.udp_protocol import UdpProtocol
+from src.udp.udp_socket_closed_error import UdpSocketClosedError
 
 
 class UdpSocket:
@@ -33,7 +34,6 @@ class UdpSocket:
             lambda: protocol,
             remote_addr=(address_remote.get_ip(), address_remote.get_port()),
             local_addr=(cls.IP_WILDCARD, port_local),
-            reuse_port=True,
         )
         
         return cls(transport, protocol, address_remote)
@@ -59,4 +59,10 @@ class UdpSocket:
 
     
     async def receive(self) -> bytes:
-        return await self._protocol.packet_queue.get()
+        data = await self._protocol.packet_queue.get()
+        self._protocol.raise_if_error()
+        
+        if data is None:
+            raise UdpSocketClosedError()
+        else:
+            return data
