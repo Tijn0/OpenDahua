@@ -1,5 +1,7 @@
 from src.dahua.dahua_device import DahuaDevice
+from src.dahua.dahua_peer_to_peer_connection_error import DahuaPeerToPeerConnectionError
 from src.helpers import UDP, get_dec, get_auth, get_key, get_enc, get_nonce
+from src.logger import Logger
 from src.object.address import Address
 from src.object.authentication_identifier import AuthenticationIdentifier
 from src.object.cookie import Cookie
@@ -52,10 +54,15 @@ class SignalingClient:
     
     # Number constants.
     NUMBER_OF_PACKET_HANDSHAKE = 4
-    
+    NUMBER_OF_ATTEMPT_CONNECTION = 3
+
     # Time constants.
     TIME_NUMBER_OF_SECOND_TIMEOUT_HANDSHAKE = 1
-    
+    TIME_CONNECTION_ATTEMPT_INTERVAL = 5
+
+    # Logging constants.
+    LOGGING_CONNECTION_ATTEMPT_FAILED = "Connection attempt with device failed."
+
     def __init__(self, device: DahuaDevice):
         self._device = device
         
@@ -71,9 +78,19 @@ class SignalingClient:
     async def connect(self) -> PtcpSocket:
         self._probe()
         self._probe_device()
-        remote_device: UDP = self._perform_udp_hole_punch()
         
-        return await self._perform_ptcp_handshake(remote_device)
+        number_of_attempt_current = 0
+        
+        while number_of_attempt_current <= self.NUMBER_OF_ATTEMPT_CONNECTION:
+            try:
+                remote_device: UDP = self._perform_udp_hole_punch()
+                return await self._perform_ptcp_handshake(remote_device)
+            # TODO: Dit specifieker afvangen
+            except Exception:
+                number_of_attempt_current += 1
+                Logger.warning(self.LOGGING_CONNECTION_ATTEMPT_FAILED)
+                
+        raise DahuaPeerToPeerConnectionError()
 
     def _probe(self) -> None:
         # TODO: Error als device niet bestaat.

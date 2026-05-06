@@ -1,0 +1,4 @@
+
+class DahuaPeerToPeerConnectionError(Exception):
+    pass
+    
