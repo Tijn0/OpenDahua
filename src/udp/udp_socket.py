@@ -17,7 +17,7 @@ class UdpSocket:
     # Index constants.
     INDEX_HOST_LOCAL = 0
     INDEX_PORT_LOCAL = 1
-    
+
     
     def __init__(self, transport: DatagramTransport, protocol: UdpProtocol, address_remote: Address):
         self._transport = transport
