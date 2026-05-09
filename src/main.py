@@ -1,12 +1,9 @@
 import asyncio
 import os
 
+from src.api_dahua.api_client_dahua import ApiClientDahua
+from src.api_dahua.request.api_request_dahua_time_current_read import ApiRequestDahuaTimeCurrentRead
 from src.dahua.dahua_device import DahuaDevice
-from src.http.http_request import HttpRequest
-from src.http.http_request_method import HttpRequestMethod
-from src.object.url import Url
-from src.ptcp.ptcp_http_client import PtcpHttpClient
-from src.signaling_client import SignalingClient
 
 SERIAL_NUMBER = os.getenv("SERIAL_NUMBER")
 USERNAME = os.getenv("USERNAME")
@@ -18,25 +15,14 @@ async def main() -> None:
         username=USERNAME,
         password=PASSWORD,
     )
-    signaling_client = SignalingClient(device)
-    
-    ptcp_socket = await signaling_client.connect()
-    
-    await ptcp_socket.start()
 
-    request = HttpRequest(HttpRequestMethod.GET, Url("/cgi-bin/mediaFileFind.cgi?action=findFile"))
-    # request = HttpRequest(HttpRequestMethod.GET, Url("/"))
+    dahua_client = ApiClientDahua(device)
+    request = ApiRequestDahuaTimeCurrentRead()
 
-    http_client = PtcpHttpClient(ptcp_socket)
-    
-    response = await http_client.send_request_and_receive_response(request)
-    
-    print(response.get_all_header())
-    print(response.get_status_code())
-    print(response.get_body_or_none())
+    response = await dahua_client.send_request(request)
+    response = await dahua_client.send_request(request)
 
-    while True:
-        await ptcp_socket.receive()
-    
+    print(response.get_time_current().year)
+
 if __name__ == '__main__':
     asyncio.run(main())

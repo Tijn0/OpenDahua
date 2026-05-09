@@ -30,15 +30,11 @@ class HttpResponseParser:
         status_line_bytes, _, header_bytes = data.partition(cls.SEPARATOR_STATUS_LINE_HEADER)
         
         all_header = HttpHeaderParser.parse_all(header_bytes)
-        _, status_code_bytes, _ = status_line_bytes.split(cls.SEPARATOR_STATUS_ITEM)
+        # TODO: magic number
+        _, status_code_bytes, _ = status_line_bytes.split(cls.SEPARATOR_STATUS_ITEM, 2)
         status_code = HttpStatusCode(int(status_code_bytes.decode(cls.ENCODING_STATUS_LINE)))
         
-        if body_bytes == HttpResponseBody.create_empty().get_http_response_body_bytes():
-            # Response doesn't have a body.
-            body = None
-            pass
-        else:
-            body = HttpResponseBody.create_from_bytes(body_bytes)
+        body = HttpResponseBody.create_from_bytes(body_bytes)
         
         return HttpResponse(status_code, all_header, body)
         

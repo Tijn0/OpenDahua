@@ -57,7 +57,7 @@ class HttpRequest:
     def _generate_request_line_string(self) -> str:
         return self.FORMAT_REQUEST_LINE.format(
             method=self._method.value,
-            url=self._url.get_path_string(),
+            url=self._url.get_url_string(), # TODO: Base weghalen maar query parameters behouden.
             protocol=self.HTTP_PROTOCOL,
         )
     
@@ -109,3 +109,15 @@ class HttpRequest:
         else:
             return body.get_http_request_body_bytes()
         
+        
+    def add_header(self, header: HttpHeader) -> None:
+        self._all_header.append(header)
+        
+        
+    def get_url(self) -> Url:
+        return self._url
+    
+    
+    def get_method(self) -> HttpRequestMethod:
+        return self._method
+    

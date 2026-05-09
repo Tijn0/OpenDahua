@@ -4,7 +4,7 @@ from src.http.http_header import HttpHeader
 class HttpHeaderParser:
     # Separator constants.
     SEPARATOR_LINE_HEADER= b"\r\n"
-    SEPARATOR_HEADER_KEY_VALUE= b":"
+    SEPARATOR_HEADER_KEY_VALUE= b": "
     
     # Encoding constants.
     ENCODING_HEADER = "ascii"

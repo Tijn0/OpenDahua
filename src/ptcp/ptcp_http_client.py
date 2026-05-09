@@ -1,6 +1,7 @@
 from src.http.http_request import HttpRequest
 from src.http.http_response import HttpResponse
 from src.http.http_response_parser import HttpResponseParser
+from src.logger import Logger
 from src.ptcp.ptcp_socket import PtcpSocket
 
 
@@ -12,11 +13,11 @@ class PtcpHttpClient:
         self._ptcp_socket: PtcpSocket = ptcp_socket
         
         
-    async def send_request_and_receive_response(self, request: HttpRequest) -> HttpResponse:
+    async def send_request(self, request: HttpRequest) -> HttpResponse:
         self._ptcp_socket.send_bind(self.PORT_HTTP)
         
         self._ptcp_socket.send(request.generate_http_request_bytes())
-       
+        
         response_bytes = await self._receive_response_bytes()
         
         return HttpResponseParser.parse(response_bytes)

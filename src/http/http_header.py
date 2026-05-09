@@ -20,3 +20,12 @@ class HttpHeader:
     
     def get_http_header_string(self) -> str:
         return self.FORMAT_HTTP_HEADER_STRING.format(key=self._key, value=self._value)
+    
+    
+    def __str__(self):
+        return self.get_http_header_string()
+
+
+    def __repr__(self):
+        return self.get_http_header_string()
+    
