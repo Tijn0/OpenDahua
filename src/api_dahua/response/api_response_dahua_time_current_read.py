@@ -7,10 +7,10 @@ from src.api_dahua.response.api_response_dahua import ApiResponseDahua
 
 @dataclass(frozen=True)
 class ApiResponseDahuaTimeCurrentRead(ApiResponseDahua):
-    _time_current: datetime
-    
+    # Field constants.
     FIELD_TIME_CURRENT = "result"
     
+    _time_current: datetime
     
     @classmethod
     def parse(cls, value: dict) -> Self:

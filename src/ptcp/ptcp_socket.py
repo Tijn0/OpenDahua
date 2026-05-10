@@ -19,7 +19,8 @@ class PtcpSocket:
     ERROR_SIZE_DATA_EXCEEDING_MAXIMUM = "The data is too large. Fix me by implementing packet chunking."
     
     # Logging constants.
-    LOGGING_DROPPING_NON_CONTIGUOUS_PACKET = "Dropping non contiguous packet."
+    LOGGING_BUFFERING_NON_CONTIGUOUS_PACKET = "Buffering non contiguous packet."
+    LOGGING_DROPPING_RETRANSMIT = "Dropping received retransmitted packet."
     LOGGING_RETRANSMITTING_PACKET = "Retransmitting packet at offset {offset}"
     LOGGING_TRANSMIT = "TX: {packet}"
     LOGGING_RECEIVE = "RX: {packet}"
@@ -47,6 +48,8 @@ class PtcpSocket:
         
         self._queue_receive: asyncio.Queue[bytes] = asyncio.Queue()
         self._queue_send: asyncio.Queue[PtcpPacketBody] = asyncio.Queue()
+        
+        self._buffer_receive: dict[int, PtcpPacket] = {}
         
         self._all_task = []
         
@@ -92,8 +95,7 @@ class PtcpSocket:
             self._queue_send.put_nowait(PtcpPacketBodyData(self._realm_identifier, data))
     
     
-    async def receive(self, timeout: int | float = None) -> bytes:
-        # TODO: timeout weer werkend maken
+    async def receive(self) -> bytes:
         return await self._queue_receive.get()
         
         
@@ -107,10 +109,24 @@ class PtcpSocket:
     
     def _handle_packet(self, packet: PtcpPacket) -> None:
         self._update_packet_identifier_local_received_last_if_needed(packet)
-        
         self._handle_ack(packet.get_offset_received())
         
-        if packet.get_offset_sent() == self._offset_received:
+        offset = packet.get_offset_sent()
+        
+        if offset == self._offset_received:
+            self._buffer_receive[offset] = packet
+        elif offset > self._offset_received:
+            Logger.warning(self.LOGGING_BUFFERING_NON_CONTIGUOUS_PACKET)
+            self._buffer_receive[offset] = packet
+        else:
+            Logger.warning(self.LOGGING_DROPPING_RETRANSMIT)
+            
+        self._drain_receive_buffer()
+        
+    
+    def _drain_receive_buffer(self) -> None:
+        while self._offset_received in self._buffer_receive:
+            packet = self._buffer_receive.pop(self._offset_received)
             packet_body = packet.get_body()
             
             if isinstance(packet_body, PtcpPacketBodyData):
@@ -126,11 +142,8 @@ class PtcpSocket:
                 pass
             else:
                 self._send_ack()
-        
-        else:
-            Logger.warning(self.LOGGING_DROPPING_NON_CONTIGUOUS_PACKET)
-            
-            
+
+
     def _update_packet_identifier_local_received_last_if_needed(self, packet: PtcpPacket) -> None:
         if packet.get_body().is_empty():
             # Acks don't count as last seen packet identifiers.

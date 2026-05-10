@@ -90,8 +90,7 @@ class ApiClientDahua:
     
     def _parse_api_response(self, api_request: ApiRequestDahua[T], http_response: HttpResponse) -> T:
         response_class = api_request.get_response_class()
-        response_body = http_response.get_body()
-        response_body_dict = ApiDahuaBodyParser.determine_dict(response_body.get_http_response_body_string())
+        response_body_dict = ApiDahuaBodyParser.determine_dict(http_response)
 
         return response_class.parse(response_body_dict)
         

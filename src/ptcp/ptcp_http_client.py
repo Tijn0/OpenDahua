@@ -9,6 +9,9 @@ class PtcpHttpClient:
     # Port constants.
     PORT_HTTP = 80
     
+    # Response constants.
+    RESPONSE_EMPTY = b""
+    
     def __init__(self, ptcp_socket: PtcpSocket):
         self._ptcp_socket: PtcpSocket = ptcp_socket
         
@@ -16,26 +19,22 @@ class PtcpHttpClient:
     async def send_request(self, request: HttpRequest) -> HttpResponse:
         self._ptcp_socket.send_bind(self.PORT_HTTP)
         
+        Logger.info(request.generate_http_request_bytes())
+        
         self._ptcp_socket.send(request.generate_http_request_bytes())
         
-        response_bytes = await self._receive_response_bytes()
+        response = await self._receive_response()
         
-        return HttpResponseParser.parse(response_bytes)
+        return response
         
         
-    async def _receive_response_bytes(self) -> bytes:
-        response_bytes = b""
-        is_response_complete = False
+    async def _receive_response(self) -> HttpResponse:
+        response_parser = HttpResponseParser()
         
-        while not is_response_complete:
+        while not response_parser.is_complete():
             response_chunk = await self._ptcp_socket.receive()
-            response_bytes += response_chunk
             
-            if HttpResponseParser.is_complete(response_bytes):
-                is_response_complete = True
-            else:
-                # Response is not complete yet.
-                pass
+            response_parser.feed(response_chunk)
 
-        return response_bytes
+        return response_parser.build()
     
