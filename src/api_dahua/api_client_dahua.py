@@ -2,10 +2,8 @@ from src.api.api_request import T
 from src.api_dahua.api_dahua_authentication_util import ApiDahuaAuthenticationUtil
 from src.api_dahua.api_dahua_body_parser import ApiDahuaBodyParser
 from src.api_dahua.request.api_request_dahua import ApiRequestDahua
-from src.api_dahua.response.api_response_dahua_time_current_read import ApiResponseDahuaTimeCurrentRead
 from src.common_object.dahua_error import DahuaError
 from src.common_object.nonce import Nonce
-from src.common_util.error_util import ErrorUtil
 from src.dahua.dahua_device import DahuaDevice
 from src.http.http_request import HttpRequest
 from src.http.http_response import HttpResponse
@@ -89,17 +87,14 @@ class ApiClientDahua:
             HttpStatusCode.OK,
         ]
     
+    
     def _parse_api_response(self, api_request: ApiRequestDahua[T], http_response: HttpResponse) -> T:
         response_class = api_request.get_response_class()
         response_body = http_response.get_body()
         response_body_dict = ApiDahuaBodyParser.determine_dict(response_body.get_http_response_body_string())
 
-        match response_class:
-            case _ if response_class is ApiResponseDahuaTimeCurrentRead:
-                return ApiResponseDahuaTimeCurrentRead.parse(response_body_dict)
-            case _:
-                raise ErrorUtil.create_error_unexpected_class(response_class)
-            
+        return response_class.parse(response_body_dict)
+        
             
     def _initialize_digest_authentication(self, http_response_unauthorized: HttpResponse) -> None:
         self._nonce = ApiDahuaAuthenticationUtil.determine_nonce_from_http_response_unauthorized(
