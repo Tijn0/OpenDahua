@@ -12,7 +12,7 @@ from src.udp.udp_socket import UdpSocket
 
 class SignalingClient:
     # Error constants.
-    ERROR_NO_RESPONSE_FROM_DEVICE = "Timeout occurred while waiting for a response from the device. Is the firewall letting it through?"
+    ERROR_NO_RESPONSE_FROM_DEVICE = "Timeout occurred while waiting for a response from the device. You are most likely on a symmetric NAT causing the UDP hole punch to fail. This can be fixed by implementing relay mode."
     
     # Main remote constants.
     MAIN_REMOTE_HOST = "www.easy4ipcloud.com"
