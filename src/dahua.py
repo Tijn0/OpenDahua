@@ -132,7 +132,6 @@ def main(serial, dtype=0, username=None, password=None, debug=False):
 
     main_remote.rhost = agent_server
     main_remote.rport = agent_port
-    # TODO check timeout
     res = main_remote.read()
 
     main_remote.request_ptcp(b"\x00\x03\x01\x00")
