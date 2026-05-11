@@ -57,7 +57,6 @@ class DahuaNVR:
         return response.get_time_current()
 
 
-    # TODO: return type
     async def get_all_video(self, channel: int, time_start: datetime, time_end: datetime) -> list[DahuaVideo]:
         response_media_file_finder_create = await self._client.send_request(ApiRequestDahuaMediaFileFinderCreate())
         media_file_finder_identifier = response_media_file_finder_create.get_media_file_finder_identifier()
