@@ -2,6 +2,7 @@ import asyncio
 from asyncio import DatagramTransport
 
 from src.helpers import UDP
+from src.logger import Logger
 from src.object.address import Address
 from src.udp.udp_protocol import UdpProtocol
 from src.udp.udp_socket_closed_error import UdpSocketClosedError
@@ -17,6 +18,9 @@ class UdpSocket:
     # Index constants.
     INDEX_HOST_LOCAL = 0
     INDEX_PORT_LOCAL = 1
+    
+    # Logging constants.
+    LOGGING_CLOSING = "[UDP] Closing."
 
     
     def __init__(self, transport: DatagramTransport, protocol: UdpProtocol, address_remote: Address):
@@ -24,6 +28,7 @@ class UdpSocket:
         self._protocol = protocol
         
         self._address_remote = address_remote
+        
         
     @classmethod
     async def create(cls, address_remote: Address, port_local: int = 0) -> UdpSocket:
@@ -66,3 +71,9 @@ class UdpSocket:
             raise UdpSocketClosedError()
         else:
             return data
+
+
+    def close(self) -> None:
+        Logger.debug(self.LOGGING_CLOSING)
+        
+        self._transport.close()

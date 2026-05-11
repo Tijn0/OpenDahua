@@ -267,6 +267,6 @@ class PtcpSocket:
         for task in self._all_task:
             task.cancel()
             
-        # TODO: close UDP socket.
-        
         await asyncio.gather(*self._all_task, return_exceptions=True)
+        
+        self._udp_socket.close()
