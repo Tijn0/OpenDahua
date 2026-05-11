@@ -33,6 +33,7 @@ class ApiDahuaAuthenticationUtil:
 
     # Digest constants.
     DIGEST_QUALITY_OF_PROTECTION_AUTHENTICATION = "auth"
+    DIGEST_NUMBER_OF_TIME_NONCE_USED = 1
 
     # Regex constants.
     REGEX_PATTERN_NONCE = re.compile(r'nonce="([^"]*)"')
@@ -83,7 +84,6 @@ class ApiDahuaAuthenticationUtil:
             device: DahuaDevice,
             nonce: Nonce,
             realm: str,
-            number_of_time_nonce_used: int,
     ) -> HttpHeader:
         quality_of_protection = cls.DIGEST_QUALITY_OF_PROTECTION_AUTHENTICATION
         nonce_client = Nonce.create_random()
@@ -102,7 +102,7 @@ class ApiDahuaAuthenticationUtil:
             cls.FORMAT_RESPONSE.format(
                 ha1=ha1,
                 nonce=nonce.get_nonce_string(),
-                number_of_time_nonce_used=number_of_time_nonce_used,
+                number_of_time_nonce_used=cls.DIGEST_NUMBER_OF_TIME_NONCE_USED,
                 nonce_client=nonce_client.get_nonce_string(),
                 qop=quality_of_protection,
                 ha2=ha2,
@@ -117,7 +117,7 @@ class ApiDahuaAuthenticationUtil:
                 nonce=nonce.get_nonce_string(),
                 url_request=request.get_url().get_url_string(),
                 qop=quality_of_protection,
-                number_of_time_nonce_used=number_of_time_nonce_used,
+                number_of_time_nonce_used=cls.DIGEST_NUMBER_OF_TIME_NONCE_USED,
                 nonce_client=nonce_client.get_nonce_string(),
                 response=response,
                 opaque="",
@@ -127,4 +127,3 @@ class ApiDahuaAuthenticationUtil:
     @staticmethod
     def _hash_md5(value: str) -> str:
         return hashlib.md5(value.encode()).hexdigest()
-    

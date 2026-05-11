@@ -16,17 +16,14 @@ class ApiClientDahua:
     ERROR_DAHUA_API = "Received error response Dahua API: \"{http_response}\"."
     ERROR_ALREADY_CONNECTED = "Already connected."
     ERROR_ALREADY_DISCONNECTED = "Already disconnected."
+    ERROR_EXPECTED_DIGEST_CHALLENGE = "Received response with status code \"{status_code}\" instead of digest authentication challenge."
     ERROR_NOT_CONNECTED = "You have to use connect() to connect to the device before making API requests."
 
 
     def __init__(self, device: DahuaDevice):
         self._device: DahuaDevice = device
         self._signaling_client: SignalingClient = SignalingClient(device)
-        
         self._http_client: PtcpHttpClient|None = None
-        self._nonce: Nonce|None = None
-        self._realm: str|None = None
-        self._number_of_time_nonce_used = 1
 
 
     async def connect(self) -> None:
@@ -52,23 +49,23 @@ class ApiClientDahua:
         client = await self._get_http_client()
         
         http_request = api_request.generate_http_request()
-        http_request = self._add_header_authentication_if_needed(http_request)
-        
         http_response = await client.send_request(http_request)
         
-        if self._is_http_response_success(http_response):
-            self._number_of_time_nonce_used += 1
+        if http_response.get_status_code() == HttpStatusCode.UNAUTHORIZED:
+            nonce = ApiDahuaAuthenticationUtil.determine_nonce_from_http_response_unauthorized(http_response)
+            realm = ApiDahuaAuthenticationUtil.determine_realm_from_http_response_unauthorized(http_response)
+
+            http_request = self._add_header_authentication(http_request, nonce, realm)
             
-            return self._parse_api_response(api_request, http_response)
-        elif http_response.get_status_code() == HttpStatusCode.UNAUTHORIZED:
-            self._initialize_digest_authentication(http_response)
+            http_response = await client.send_request(http_request)
             
-            return await self.send_request(api_request)
+            if self._is_http_response_success(http_response):
+                return self._parse_api_response(api_request, http_response)
+            else:
+                raise DahuaError(self.ERROR_DAHUA_API.format(http_response=http_response))
         else:
-            self._number_of_time_nonce_used += 1
-            
-            raise DahuaError(self.ERROR_DAHUA_API.format(http_response=http_response))
-    
+            raise DahuaError(self.ERROR_EXPECTED_DIGEST_CHALLENGE.format(status_code=http_response.get_status_code()))
+        
     
     async def _get_http_client(self) -> PtcpHttpClient:
         if self._http_client is None:
@@ -77,19 +74,14 @@ class ApiClientDahua:
             return self._http_client
         
     
-    def _add_header_authentication_if_needed(self, http_request: HttpRequest) -> HttpRequest:
-        if self._nonce is None or self._realm is None:
-            # We don't have a nonce yet.
-            pass
-        else:
-            header_authentication = ApiDahuaAuthenticationUtil.generate_header_authentication(
-                http_request,
-                self._device,
-                self._nonce,
-                self._realm,
-                self._number_of_time_nonce_used,
-            )
-            http_request.add_header(header_authentication)
+    def _add_header_authentication(self, http_request: HttpRequest, nonce: Nonce, realm: str) -> HttpRequest:
+        header_authentication = ApiDahuaAuthenticationUtil.generate_header_authentication(
+            http_request,
+            self._device,
+            nonce,
+            realm,
+        )
+        http_request.add_header(header_authentication)
         
         return http_request
 
@@ -110,13 +102,3 @@ class ApiClientDahua:
         response_body_dict = ApiDahuaBodyParser.determine_dict(http_response)
 
         return response_class.parse(response_body_dict)
-        
-            
-    def _initialize_digest_authentication(self, http_response_unauthorized: HttpResponse) -> None:
-        self._nonce = ApiDahuaAuthenticationUtil.determine_nonce_from_http_response_unauthorized(
-            http_response_unauthorized,
-        )
-        self._realm = ApiDahuaAuthenticationUtil.determine_realm_from_http_response_unauthorized(
-            http_response_unauthorized,
-        )
-        self._number_of_time_nonce_used = 1

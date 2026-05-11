@@ -12,7 +12,7 @@ async def main() -> None:
     async with DahuaNVR(SERIAL_NUMBER, USERNAME, PASSWORD) as nvr:
         all_video = await nvr.get_all_video(
             channel=2,
-            time_start=datetime.now() - timedelta(hours=4),
+            time_start=datetime.now() - timedelta(hours=1),
             time_end=datetime.now(),
         )
         
