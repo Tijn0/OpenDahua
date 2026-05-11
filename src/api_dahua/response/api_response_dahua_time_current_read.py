@@ -14,11 +14,10 @@ class ApiResponseDahuaTimeCurrentRead(ApiResponseDahua):
     
     @classmethod
     def parse(cls, value: dict) -> Self:
-        time_current = datetime.fromisoformat(value[cls.FIELD_TIME_CURRENT])
+        time_current = value[cls.FIELD_TIME_CURRENT]
         
         return cls(time_current)
     
     
     def get_time_current(self) -> datetime:
         return self._time_current
-    

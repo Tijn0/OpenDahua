@@ -16,6 +16,14 @@ class PtcpHttpClient:
         self._ptcp_socket: PtcpSocket = ptcp_socket
         
         
+    async def connect(self) -> None:
+        await self._ptcp_socket.connect()
+    
+    
+    async def disconnect(self) -> None:
+        await self._ptcp_socket.disconnect()
+        
+
     async def send_request(self, request: HttpRequest) -> HttpResponse:
         self._ptcp_socket.send_bind(self.PORT_HTTP)
         
@@ -38,3 +46,6 @@ class PtcpHttpClient:
 
         return response_parser.build()
     
+    
+    def get_ptcp_socket(self) -> PtcpSocket:
+        return self._ptcp_socket

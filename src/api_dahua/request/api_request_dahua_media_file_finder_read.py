@@ -11,16 +11,18 @@ from src.object.url import Url
 
 class ApiRequestDahuaMediaFileFinderRead(ApiRequestDahua[ApiResponseDahuaMediaFileFinderRead]):
     # Request constants.
-    REQUEST_ENDPOINT = "/cgi-bin/mediaFileFind.cgi?action=findNextFile&object={media_file_finder_identifier}&count=100"
+    REQUEST_ENDPOINT = "/cgi-bin/mediaFileFind.cgi?action=findNextFile&object={media_file_finder_identifier}&count={number_of_result_maximum}"
     
-    def __init__(self, media_file_finder_identifier: ApiDahuaMediaFileFinderIdentifier):
+    def __init__(self, media_file_finder_identifier: ApiDahuaMediaFileFinderIdentifier, number_of_result_maximum: int):
         self._media_file_finder_identifier: ApiDahuaMediaFileFinderIdentifier = media_file_finder_identifier
+        self._number_of_result_maximum: int = number_of_result_maximum
 
 
     def determine_endpoint(self) -> Url:
         return Url(
             self.REQUEST_ENDPOINT.format(
-                media_file_finder_identifier = self._media_file_finder_identifier
+                media_file_finder_identifier = self._media_file_finder_identifier,
+                number_of_result_maximum = self._number_of_result_maximum,
             ),
         )
 

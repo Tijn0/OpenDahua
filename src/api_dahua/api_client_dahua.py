@@ -14,7 +14,10 @@ from src.signaling_client import SignalingClient
 class ApiClientDahua:
     # Error constants.
     ERROR_DAHUA_API = "Received error response Dahua API: \"{http_response}\"."
-    
+    ERROR_ALREADY_CONNECTED = "Already connected."
+    ERROR_ALREADY_DISCONNECTED = "Already disconnected."
+    ERROR_NOT_CONNECTED = "You have to use connect() to connect to the device before making API requests."
+
 
     def __init__(self, device: DahuaDevice):
         self._device: DahuaDevice = device
@@ -25,7 +28,26 @@ class ApiClientDahua:
         self._realm: str|None = None
         self._number_of_time_nonce_used = 1
 
+
+    async def connect(self) -> None:
+        if self._http_client is None:
+            ptcp_socket = await self._signaling_client.connect()
+            
+            http_client = PtcpHttpClient(ptcp_socket)
+            
+            await http_client.connect()
+            self._http_client = http_client
+        else:
+            raise DahuaError(self.ERROR_ALREADY_CONNECTED)
+    
+    
+    async def disconnect(self) -> None:
+        if self._http_client is None:
+            raise DahuaError(self.ERROR_ALREADY_DISCONNECTED)
+        else:
+            await self._http_client.disconnect()
         
+    
     async def send_request(self, api_request: ApiRequestDahua[T]) -> T:
         client = await self._get_http_client()
         
@@ -46,8 +68,15 @@ class ApiClientDahua:
             self._number_of_time_nonce_used += 1
             
             raise DahuaError(self.ERROR_DAHUA_API.format(http_response=http_response))
+    
+    
+    async def _get_http_client(self) -> PtcpHttpClient:
+        if self._http_client is None:
+            raise DahuaError(self.ERROR_NOT_CONNECTED)
+        else:
+            return self._http_client
         
-        
+    
     def _add_header_authentication_if_needed(self, http_request: HttpRequest) -> HttpRequest:
         if self._nonce is None or self._realm is None:
             # We don't have a nonce yet.
@@ -64,18 +93,6 @@ class ApiClientDahua:
         
         return http_request
 
-        
-    async def _get_http_client(self) -> PtcpHttpClient:
-        if self._http_client is None:
-            ptcp_socket = await self._signaling_client.connect()
-            await ptcp_socket.start()
-            http_client = PtcpHttpClient(ptcp_socket)
-            self._http_client = http_client
-            
-            return http_client
-        else:
-            return self._http_client
-        
         
     def _is_http_response_success(self, http_response: HttpResponse) -> bool:
         return http_response.get_status_code() in self._get_all_http_status_code_success()
@@ -103,4 +120,3 @@ class ApiClientDahua:
             http_response_unauthorized,
         )
         self._number_of_time_nonce_used = 1
-        

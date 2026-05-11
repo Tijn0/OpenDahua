@@ -1,7 +1,9 @@
-from typing import Type
 from datetime import datetime
+from typing import Type
+from urllib.parse import urlencode
 
 from src.api.api_request import T
+from src.api_dahua.api_dahua_util import ApiDahuaUtil
 from src.api_dahua.object.api_dahua_media_file_finder_identifier import ApiDahuaMediaFileFinderIdentifier
 from src.api_dahua.request.api_request_dahua import ApiRequestDahua
 from src.api_dahua.response.api_response_dahua_media_file_finder_find import ApiResponseDahuaMediaFileFinderFind
@@ -12,8 +14,7 @@ from src.object.url import Url
 
 class ApiRequestDahuaMediaFileFinderFind(ApiRequestDahua[ApiResponseDahuaMediaFileFinderFind]):
     # Request constants.
-    REQUEST_ENDPOINT = "/cgi-bin/mediaFileFind.cgi?action=findFile&object={media_file_finder_identifier}&condition.Channel={channel_identifier}&condition.StartTimeRealUTC={time_start}&condition.EndTimeRealUTC={time_end}"
-    
+    REQUEST_ENDPOINT = "/cgi-bin/mediaFileFind.cgi?action=findFile&object={media_file_finder_identifier}&condition.Channel={channel_identifier}&condition.StartTime={time_start}&condition.EndTime={time_end}&condition.VideoStream=Main"
     
     def __init__(
             self,
@@ -33,8 +34,8 @@ class ApiRequestDahuaMediaFileFinderFind(ApiRequestDahua[ApiResponseDahuaMediaFi
             self.REQUEST_ENDPOINT.format(
                 media_file_finder_identifier = self._media_file_finder_identifier.get_media_file_identifier_int(),
                 channel_identifier = self._channel_identifier,
-                time_start = self._time_start.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                time_end = self._time_end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                time_start = self._time_start.isoformat(sep=" ", timespec="seconds"),
+                time_end = self._time_end.isoformat(sep=" ", timespec="seconds"),
             ),
         )
     
@@ -49,4 +50,3 @@ class ApiRequestDahuaMediaFileFinderFind(ApiRequestDahua[ApiResponseDahuaMediaFi
     
     def get_response_class(self) -> Type[T]:
         return ApiResponseDahuaMediaFileFinderFind
-    

@@ -22,6 +22,8 @@ class PtcpSocket:
     LOGGING_BUFFERING_NON_CONTIGUOUS_PACKET = "Buffering non contiguous packet."
     LOGGING_DROPPING_RETRANSMIT = "Dropping received retransmitted packet."
     LOGGING_RETRANSMITTING_PACKET = "Retransmitting packet at offset {offset}"
+    LOGGING_CONNECTING = "[PTCP] Connecting."
+    LOGGING_DISCONNECTING = "[PTCP] Disconnecting."
     LOGGING_TRANSMIT = "TX: {packet}"
     LOGGING_RECEIVE = "RX: {packet}"
 
@@ -54,7 +56,9 @@ class PtcpSocket:
         self._all_task = []
         
         
-    async def start(self) -> None:
+    async def connect(self) -> None:
+        Logger.debug(self.LOGGING_CONNECTING)
+        
         self._send_syn()
         self._all_task = [
             asyncio.create_task(self._loop_send()),
@@ -63,7 +67,8 @@ class PtcpSocket:
             asyncio.create_task(self._loop_heartbeat()),
         ]
         
-
+        # TODO: wacht tot verbinding bevestigd is van de andere kant.
+    
     async def _loop_send(self) -> None:
         while True:
             body = await self._queue_send.get()
@@ -170,7 +175,7 @@ class PtcpSocket:
         )
         
         self._send_packet(packet)
-            
+        
         
     def _send_syn(self) -> None:
         packet = PtcpPacket(
@@ -256,8 +261,12 @@ class PtcpSocket:
             self._packet_identifier = self._packet_identifier.decrement()
 
 
-    async def stop(self) -> None:
+    async def disconnect(self) -> None:
+        Logger.debug(self.LOGGING_DISCONNECTING)
+        
         for task in self._all_task:
             task.cancel()
             
+        # TODO: close UDP socket.
+        
         await asyncio.gather(*self._all_task, return_exceptions=True)
