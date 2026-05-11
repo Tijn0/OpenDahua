@@ -1,5 +1,6 @@
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
 import aiofiles
 
@@ -24,7 +25,7 @@ class DahuaNVR:
     FORMAT_FILENAME_VIDEO = "{name_nvr}_ch{channel_number}_{time_start:%Y%m%d%H%M%S}_{time_end:%Y%m%d%H%M%S}.{filetype}"
     
     # File constants.
-    FILE_MODE_WRITE_BYTES = "wb"
+    FILE_MODE_WRITE_BYTES: Literal["wb"] = "wb"
 
     def __init__(self, serial_number: str, username: str, password: str):
         self._device: DahuaDevice = DahuaDevice(serial_number, username, password)
@@ -108,8 +109,7 @@ class DahuaNVR:
         
         filename_video = await self._generate_filename_video(video)
         
-        # TODO: magic number
-        async with aiofiles.open(filename_video, "wb") as file:
+        async with aiofiles.open(filename_video, self.FILE_MODE_WRITE_BYTES) as file:
             await file.write(response_video_download.get_media_file_bytes())
             
         return Path(filename_video)
