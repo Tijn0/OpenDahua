@@ -84,6 +84,7 @@ class SignalingClient:
         while number_of_attempt_current <= self.NUMBER_OF_ATTEMPT_CONNECTION:
             try:
                 remote_device: UDP = self._perform_udp_hole_punch()
+                
                 return await self._perform_ptcp_handshake(remote_device)
             # TODO: Dit specifieker afvangen
             except Exception:
