@@ -1,6 +1,7 @@
+from src.common_object.nonce import Nonce
 from src.dahua.dahua_device import DahuaDevice
 from src.dahua.dahua_peer_to_peer_connection_error import DahuaPeerToPeerConnectionError
-from src.helpers import UDP, get_dec, get_auth, get_key, get_enc, get_nonce
+from src.helpers import UDP, get_dec, get_auth, get_key, get_enc
 from src.logger import Logger
 from src.object.address import Address
 from src.object.authentication_identifier import AuthenticationIdentifier
@@ -68,7 +69,7 @@ class SignalingClient:
         
         self._authentication_identifier: AuthenticationIdentifier = AuthenticationIdentifier.create_random()
         self._authentication_key: bytes = get_key(self._device.get_username(), self._device.get_password())
-        self._authentication_nonce: int = get_nonce()
+        self._authentication_nonce: int = -1
         
         self._remote_main: UDP = UDP(self.MAIN_REMOTE_HOST, self.MAIN_REMOTE_PORT)
         
