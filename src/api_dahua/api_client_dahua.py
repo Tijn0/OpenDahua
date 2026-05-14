@@ -13,7 +13,7 @@ from src.signaling_client import SignalingClient
 
 class ApiClientDahua:
     # Error constants.
-    ERROR_DAHUA_API = "Received error response Dahua API: \"{http_response}\"."
+    ERROR_DAHUA_API = "Received error response from Dahua API: \"{http_response}\"."
     ERROR_ALREADY_CONNECTED = "Already connected."
     ERROR_ALREADY_DISCONNECTED = "Already disconnected."
     ERROR_EXPECTED_DIGEST_CHALLENGE = "Received response with status code \"{status_code}\" instead of digest authentication challenge."

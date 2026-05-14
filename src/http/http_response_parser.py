@@ -69,7 +69,9 @@ class HttpResponseParser:
         if self._index_header_end is None:
             return False
         elif self._content_length is None:
-            raise DahuaError(self.ERROR_CONTENT_HEADER_MISSING)
+            # Headers are complete and the content-length header is not present.
+            # We can assume the response doesn't have a body, so the request is complete.
+            return True
         elif self._is_body_complete(self._content_length):
             return True
         else:
@@ -117,4 +119,3 @@ class HttpResponseParser:
             pass
         else:
             raise DahuaError(self.ERROR_RESPONSE_INCOMPLETE)
-    

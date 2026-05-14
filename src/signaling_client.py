@@ -1,3 +1,8 @@
+from src.api_peer_to_peer.api_client_peer_to_peer import ApiClientPeerToPeer
+from src.api_peer_to_peer.request.api_request_peer_to_peer_device_probe import ApiRequestPeerToPeerDeviceProbe
+from src.api_peer_to_peer.request.api_request_peer_to_peer_device_read import ApiRequestPeerToPeerDeviceRead
+from src.api_peer_to_peer.request.api_request_peer_to_peer_server_info_read import ApiRequestPeerToPeerServerInfoRead
+from src.api_peer_to_peer.request.api_request_peer_to_peer_server_probe import ApiRequestPeerToPeerServerProbe
 from src.dahua.dahua_device import DahuaDevice
 from src.dahua.dahua_peer_to_peer_connection_error import DahuaPeerToPeerConnectionError
 from src.helpers import UDP, get_dec, get_auth, get_key, get_enc
@@ -20,9 +25,6 @@ class SignalingClient:
     
     # Endpoint constants.
     ENDPOINT_PEER_TO_PEER_SERVER_PROBE = "/probe/p2psrv"
-    ENDPOINT_PEER_TO_PEER_SERVER_INFO = "/online/p2psrv/{serial_number}"
-    ENDPOINT_DEVICE_PROBE = "/probe/device/{serial_number}"
-    ENDPOINT_DEVICE_INFO = "/info/device/{serial_number}"
     ENDPOINT_DEVICE_PEER_TO_PEER_CHANNEL = "/device/{serial_number}/p2p-channel"
     
     # Field constants.
@@ -71,13 +73,19 @@ class SignalingClient:
         self._authentication_nonce: int = -1
         
         self._remote_main: UDP = UDP(self.MAIN_REMOTE_HOST, self.MAIN_REMOTE_PORT)
+        self._udp_socket_main: UdpSocket|None = None
+        
+        self._client = ApiClientPeerToPeer()
         
         # TODO: dit misschien op een betere plek neerzetten
         self._address_device_local: Address|None = None
+        
+        # TODO: ergens alle sockets closen.
 
     async def connect(self) -> PtcpSocket:
-        self._probe()
-        self._probe_device()
+        self._udp_socket_main = await UdpSocket.create_from_socket(self._remote_main)
+        await self._probe()
+        await self._probe_device()
         
         number_of_attempt_current = 0
         
@@ -93,29 +101,34 @@ class SignalingClient:
                 
         raise DahuaPeerToPeerConnectionError()
 
-    def _probe(self) -> None:
-        # TODO: Error als device niet bestaat.
-        self._remote_main.request(self.ENDPOINT_PEER_TO_PEER_SERVER_PROBE)
-    
-    
-    def _probe_device(self) -> None:
-        remote_peer_to_peer = self._determine_remote_peer_to_peer()
+
+    async def _probe(self) -> None:
+        await self._client.send_request(ApiRequestPeerToPeerServerProbe(), self._udp_socket_main)
+        # self._remote_main.request(self.ENDPOINT_PEER_TO_PEER_SERVER_PROBE)
         
-        remote_peer_to_peer.request(self.ENDPOINT_DEVICE_PROBE.format(serial_number=self._device.get_serial_number()))
+        
+    async def _probe_device(self) -> None:
+        # TODO: Error als device niet bestaat.
+        udp_socket_peer_to_peer = await self._determine_remote_peer_to_peer()
+        
+        api_request_probe_device = ApiRequestPeerToPeerDeviceProbe(self._device)
+        await self._client.send_request(api_request_probe_device, udp_socket_peer_to_peer)
         
         # TODO: random salt shit
-        remote_peer_to_peer.request(self.ENDPOINT_DEVICE_INFO.format(serial_number=self._device.get_serial_number()))
-        
-        remote_peer_to_peer.close()
+        request_device_read = ApiRequestPeerToPeerDeviceRead(self._device)
+        await self._client.send_request(request_device_read, udp_socket_peer_to_peer)
         
     
-    def _determine_remote_peer_to_peer(self) -> UDP:
-        response = self._remote_main.request(
-            self.ENDPOINT_PEER_TO_PEER_SERVER_INFO.format(serial_number=self._device.get_serial_number()))
+    async def _determine_remote_peer_to_peer(self) -> UdpSocket:
+        response = await self._client.send_request(
+            ApiRequestPeerToPeerServerInfoRead(self._device),
+            self._udp_socket_main,
+        )
         
-        address_server_peer_to_peer = Address(response[self.FIELD_DATA][self.FIELD_BODY][self.FIELD_ADDRESS_SERVER_PEER_TO_PEER])
+        address_server_peer_to_peer = response.get_address_server_upstream()
         
-        return UDP.create_from_address(address_server_peer_to_peer)
+        return await UdpSocket.create(address_server_peer_to_peer)
+    
     
     def _perform_udp_hole_punch(self) -> UDP:
         # We set the remote device connection to the host server first.
