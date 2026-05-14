@@ -1,4 +1,5 @@
 import re
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import Any
 
@@ -146,4 +147,5 @@ class ApiDahuaBodyParser:
         try:
             return datetime.fromisoformat(value_string)
         except ValueError:
+            # TODO: magic number.
             return datetime.strptime(value_string, "%Y-%m-%d %H:%M:%S")
