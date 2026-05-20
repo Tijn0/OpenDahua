@@ -1,8 +1,12 @@
 import base64
 import hashlib
+import hmac
+import os
+import time
 from datetime import datetime, timezone
 
 from src.common_object.nonce import Nonce
+from src.dahua.dahua_device import DahuaDevice
 from src.http.http_header import HttpHeader
 
 
@@ -26,6 +30,15 @@ class ApiPeerToPeerAuthenticationUtil:
     # Format constants.
     FORMAT_TIME_CREATED = "%Y-%m-%dT%H:%M:%SZ"
     FORMAT_PASSWORD = "{nonce}{time_created}DHP2P:{username}:{authentication_key}"
+    FORMAT_MESSAGE_AUTHENTICATION = "{nonce}{time_epoch_now}{payload}"
+    FORMAT_PART_BODY_AUTHENTICATION = (
+        "<CreateDate>{time_epoch_now}</CreateDate>"
+        "<DevAuth>{authentication_token}</DevAuth>"
+        "<Nonce>{nonce}</Nonce>"
+        "<RandSalt>{random_salt}</RandSalt>"
+        "<UserName>{username}</UserName>"
+    )
+    FORMAT_AUTHENTICATION_KEY_PAYLOAD = "{username}:Login to {random_salt}:{password}"
 
     @classmethod
     def generate_header_authorization(cls) -> HttpHeader:
@@ -65,3 +78,40 @@ class ApiPeerToPeerAuthenticationUtil:
         digest = base64.b64encode(hash_digest.digest()).decode()
         
         return digest
+    
+    
+    @classmethod
+    def generate_part_body_authentication(cls, device: DahuaDevice, authentication_key: bytes, payload: str, nonce: Nonce) -> str:
+        time_epoch_now = int(time.time())
+        
+        # TODO: Dit uit de device read response halen.
+        random_salt = os.getenv("RANDOM_SALT")
+        
+        message_authentication = cls.FORMAT_MESSAGE_AUTHENTICATION.format(
+            nonce=nonce.get_nonce_string(),
+            time_epoch_now=time_epoch_now,
+            payload=payload,
+        ).encode()
+        authentication_token = base64.b64encode(hmac.new(authentication_key, message_authentication, hashlib.sha256).digest()).decode()
+        
+        return cls.FORMAT_PART_BODY_AUTHENTICATION.format(
+            time_epoch_now=time_epoch_now,
+            authentication_token=authentication_token,
+            nonce=nonce.get_nonce_string(),
+            random_salt=random_salt,
+            username=device.get_username(),
+        )
+
+    # TODO: custom type.
+    @classmethod
+    def generate_authentication_key(cls, device: DahuaDevice) -> bytes:
+        # TODO: Dit uit de device read response halen.
+        random_salt = os.getenv("RANDOM_SALT")
+        
+        payload = cls.FORMAT_AUTHENTICATION_KEY_PAYLOAD.format(
+            username=device.get_username(),
+            random_salt=random_salt,
+            password=device.get_password(),
+        )
+        
+        return hashlib.md5(payload.encode()).hexdigest().upper().encode()

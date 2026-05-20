@@ -21,6 +21,9 @@ class UdpSocket:
     
     # Logging constants.
     LOGGING_CLOSING = "[UDP] Closing."
+    
+    # Info constants.
+    INFO_SOCKNAME = "sockname"
 
     
     def __init__(self, transport: DatagramTransport, protocol: UdpProtocol, address_remote: Address):
@@ -37,7 +40,7 @@ class UdpSocket:
         protocol = UdpProtocol()
         transport, _ = await loop.create_datagram_endpoint(
             lambda: protocol,
-            remote_addr=(address_remote.get_ip(), address_remote.get_port()),
+            # remote_addr=(address_remote.get_ip(), address_remote.get_port()),
             local_addr=(cls.IP_WILDCARD, port_local),
         )
         
@@ -72,6 +75,20 @@ class UdpSocket:
         else:
             return data
 
+
+    def set_address_remote(self, address_remote: Address) -> None:
+        self._address_remote = address_remote
+        
+        
+    def get_address_remote(self) -> Address:
+        return self._address_remote
+    
+    
+    def get_address_local(self) -> Address:
+        ip_local, port_local = self._transport.get_extra_info(self.INFO_SOCKNAME)
+        
+        return Address.create_from_ip_and_port(ip_local, port_local)
+    
 
     def close(self) -> None:
         Logger.debug(self.LOGGING_CLOSING)

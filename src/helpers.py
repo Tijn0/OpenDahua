@@ -38,8 +38,8 @@ def get_nonce():
     return random.randrange(2**31)
 
 
-def get_enc(key: bytes, nonce: int, data: str):
-    salt = str(nonce).encode()
+def get_enc(key: bytes, nonce: str, data: str):
+    salt = nonce.encode()
     dk = hashlib.pbkdf2_hmac("sha256", key, salt, 20000, 32)
 
     encryptor = Cipher(
@@ -50,8 +50,8 @@ def get_enc(key: bytes, nonce: int, data: str):
     return base64.b64encode(enc).decode()
 
 
-def get_dec(key: bytes, nonce: int, data: str):
-    salt = str(nonce).encode()
+def get_dec(key: bytes, nonce: str, data: str):
+    salt = nonce.encode()
     dk = hashlib.pbkdf2_hmac("sha256", key, salt, 20000, 32)
 
     encryptor = Cipher(

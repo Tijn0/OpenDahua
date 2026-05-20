@@ -1,8 +1,10 @@
 from src.api_peer_to_peer.api_client_peer_to_peer import ApiClientPeerToPeer
+from src.api_peer_to_peer.request.api_request_peer_to_peer_channel_create import ApiRequestPeerToPeerChannelCreate
 from src.api_peer_to_peer.request.api_request_peer_to_peer_device_probe import ApiRequestPeerToPeerDeviceProbe
 from src.api_peer_to_peer.request.api_request_peer_to_peer_device_read import ApiRequestPeerToPeerDeviceRead
 from src.api_peer_to_peer.request.api_request_peer_to_peer_server_info_read import ApiRequestPeerToPeerServerInfoRead
 from src.api_peer_to_peer.request.api_request_peer_to_peer_server_probe import ApiRequestPeerToPeerServerProbe
+from src.common_object.nonce import Nonce
 from src.dahua.dahua_device import DahuaDevice
 from src.dahua.dahua_peer_to_peer_connection_error import DahuaPeerToPeerConnectionError
 from src.helpers import UDP, get_dec, get_auth, get_key, get_enc
@@ -23,34 +25,10 @@ class SignalingClient:
     MAIN_REMOTE_HOST = "www.easy4ipcloud.com"
     MAIN_REMOTE_PORT = 8800
     
-    # Endpoint constants.
-    ENDPOINT_PEER_TO_PEER_SERVER_PROBE = "/probe/p2psrv"
-    ENDPOINT_DEVICE_PEER_TO_PEER_CHANNEL = "/device/{serial_number}/p2p-channel"
-    
-    # Field constants.
-    FIELD_DATA = "data"
-    FIELD_BODY = "body"
-    FIELD_ADDRESS_SERVER_PEER_TO_PEER = "US"
-    FIELD_ADDRESS_DEVICE_LOCAL_ENCRYPTED = "LocalAddr"
-    FIELD_ADDRESS_DEVICE_PUBLIC = "PubAddr"
-    FIELD_NONCE = "Nonce"
-    
     # IP constants.
     IP_LOOPBACK = "127.0.0.1"
     
-    # Part constants.
-    PART_BODY_ADDRESS_LOCAL_ENCRYPTED = "<IpEncrptV2>true</IpEncrptV2><LocalAddr>{address_local_encrypted}</LocalAddr>"
-    
-    # Body constants.
-    BODY_DEVICE_PEER_TO_PEER_CHANNEL = "<body>{header_authentication}<Identify>{authentication_identifier}</Identify>{part_body_address_local_encrypted}<version>5.0.0</version></body>"
-    
-    # Separator constants.
-    SEPARATOR_ADDRESS = ":"
-    
     # Index constants.
-    INDEX_ALL_ADDRESS_DEVICE = 1
-    INDEX_ADDRESS_DEVICE = 1
-    INDEX_PORT_DEVICE = 1
     INDEX_PTCP_RESPONSE_TRANSACTION_IDENTIFIER_START = 8
     INDEX_PTCP_RESPONSE_TRANSACTION_IDENTIFIER_END = 20
     
@@ -91,11 +69,12 @@ class SignalingClient:
         
         while number_of_attempt_current <= self.NUMBER_OF_ATTEMPT_CONNECTION:
             try:
-                remote_device: UDP = self._perform_udp_hole_punch()
+                remote_device: UdpSocket = await self._perform_udp_hole_punch()
                 
                 return await self._perform_ptcp_handshake(remote_device)
             # TODO: Dit specifieker afvangen
-            except Exception:
+            except Exception as exception:
+                print(exception)
                 number_of_attempt_current += 1
                 Logger.warning(self.LOGGING_CONNECTION_ATTEMPT_FAILED)
                 
@@ -104,7 +83,6 @@ class SignalingClient:
 
     async def _probe(self) -> None:
         await self._client.send_request(ApiRequestPeerToPeerServerProbe(), self._udp_socket_main)
-        # self._remote_main.request(self.ENDPOINT_PEER_TO_PEER_SERVER_PROBE)
         
         
     async def _probe_device(self) -> None:
@@ -130,60 +108,36 @@ class SignalingClient:
         return await UdpSocket.create(address_server_peer_to_peer)
     
     
-    def _perform_udp_hole_punch(self) -> UDP:
+    async def _perform_udp_hole_punch(self) -> UdpSocket:
         # We set the remote device connection to the host server first.
         # We use this connection to open up a NAT mapping by making a request to the peer-to-peer server.
         # Then we reuse the connection to perform a UDP hole punch with our peer netting us a connection.
-        remote_device = UDP(self._remote_main.rhost, self._remote_main.rport)
+        address_main = Address.create_from_ip_and_port(self._remote_main.rhost, self._remote_main.rport)
         
-        header_authentication = self._generate_header_authentication(remote_device.lport)
+        udp_socket_device = await UdpSocket.create(address_main)
+
+        address_local = Address.create_from_ip_and_port(self.IP_LOOPBACK, udp_socket_device.get_address_local().get_port())
+        request_peer_to_peer_channel_create = ApiRequestPeerToPeerChannelCreate(self._device, address_local, self._authentication_identifier, Nonce.create_random())
+        response_peer_to_peer_channel_create = await self._client.send_request(request_peer_to_peer_channel_create, udp_socket_device)
         
-        address_local_encrypted = self._generate_address_local_encrypted(remote_device.lport)
-        part_body_address_local_encrypted = self.PART_BODY_ADDRESS_LOCAL_ENCRYPTED.format(
-            address_local_encrypted=address_local_encrypted)
+        address_device_local_encrypted = response_peer_to_peer_channel_create.get_address_device_local_encrypted()
+        nonce = response_peer_to_peer_channel_create.get_nonce()
+        address_device_local_string = get_dec(self._authentication_key, nonce.get_nonce_string(), address_device_local_encrypted)
         
-        body = self.BODY_DEVICE_PEER_TO_PEER_CHANNEL.format(
-            header_authentication=header_authentication,
-            authentication_identifier=self._authentication_identifier.get_authentication_identifier_string(),
-            part_body_address_local_encrypted=part_body_address_local_encrypted,
-        )
+        self._address_device_local = Address(address_device_local_string)
+
+        address_device_public = response_peer_to_peer_channel_create.get_address_device_public()
         
-        _ = remote_device.request(
-            path=self.ENDPOINT_DEVICE_PEER_TO_PEER_CHANNEL.format(serial_number=self._device.get_serial_number()),
-            body=body,
-            should_read=False,
-        )
-        try:
-            response = remote_device.read_data(return_error=True, timeout=5)
-        except TimeoutError:
-            _ = remote_device.request(
-                path=self.ENDPOINT_DEVICE_PEER_TO_PEER_CHANNEL.format(serial_number=self._device.get_serial_number()),
-                body=body,
-                should_read=False,
-            )
-            response = remote_device.read_data(return_error=True, timeout=5)
+        udp_socket_device.set_address_remote(address_device_public)
         
-        address_device_local_encrypted = response[self.FIELD_DATA][self.FIELD_BODY][self.FIELD_ADDRESS_DEVICE_LOCAL_ENCRYPTED]
-        self._authentication_nonce = response[self.FIELD_DATA][self.FIELD_BODY][self.FIELD_NONCE]
-        address_device_local_string = get_dec(self._authentication_key, self._authentication_nonce, address_device_local_encrypted)
-        ip_device_local = address_device_local_string.split(self.SEPARATOR_ADDRESS)[self.INDEX_ALL_ADDRESS_DEVICE][self.INDEX_ADDRESS_DEVICE]
-        port_device_local = int(address_device_local_string.split(self.SEPARATOR_ADDRESS)[self.INDEX_PORT_DEVICE])
-        
-        self._address_device_local = Address.create_from_ip_and_port(ip_device_local, port_device_local)
-        
-        address_device_public = Address(response[self.FIELD_DATA][self.FIELD_BODY][self.FIELD_ADDRESS_DEVICE_PUBLIC])
-        
-        remote_device.set_ip(address_device_public.get_ip())
-        remote_device.set_port(address_device_public.get_port())
-        
-        return remote_device
+        return udp_socket_device
     
     
-    async def _perform_ptcp_handshake(self, remote_device: UDP) -> PtcpSocket:
-        address_device = Address.create_from_ip_and_port(remote_device.rhost, remote_device.rport)
+    async def _perform_ptcp_handshake(self, udp_socket_device: UdpSocket) -> PtcpSocket:
+        address_device = udp_socket_device.get_address_remote()
         cookie = Cookie.create_random()
         
-        remote_device.send((
+        udp_socket_device.send((
                 b"\xff\xfe\xff\xe7"
                 + cookie.get_cookie_bytes()
                 + TransactionIdentifier.create_random().get_transaction_identifier_bytes()
@@ -192,14 +146,15 @@ class SignalingClient:
                 + b"\xff\xfb\xff\xf7\xff\xfe"
                 + address_device.get_address_encoded()
         ))
-        
+
         try:
-            data = remote_device.recv(timeout=5)
+            # TODO: Timeout weer laten werken.
+            data = await udp_socket_device.receive()
         except TimeoutError:
             raise Exception(self.ERROR_NO_RESPONSE_FROM_DEVICE)
-        
+
         transaction_identifier_response = TransactionIdentifier(data[self.INDEX_PTCP_RESPONSE_TRANSACTION_IDENTIFIER_START:self.INDEX_PTCP_RESPONSE_TRANSACTION_IDENTIFIER_END])
-        remote_device.send((
+        udp_socket_device.send((
                 b"\xfe\xfe\xff\xe7"
                 + cookie.get_cookie_bytes()
                 + transaction_identifier_response.get_transaction_identifier_bytes()
@@ -208,10 +163,10 @@ class SignalingClient:
                 + b"\xff\xfb\xff\xf7\xff\xfe"
                 + self._address_device_local.get_address_encoded()
         ))
-        _ = remote_device.recv()
-        
+        await udp_socket_device.receive()
+
         for _ in range(self.NUMBER_OF_PACKET_HANDSHAKE):
-            remote_device.send((
+            udp_socket_device.send((
                     b"\xfe\xfe\xff\xf3"
                     + cookie.get_cookie_bytes()
                     + transaction_identifier_response.get_transaction_identifier_bytes()
@@ -219,29 +174,8 @@ class SignalingClient:
                     + self._authentication_identifier.get_authentication_identifier_bytes_inverted()
                     + b"\xff\xfb\xff\xf7\xff\xfe"
                     + b"\xa8\x13\x3f\x57\xfe\x37"
-            
+
             ))
+            await udp_socket_device.receive()
             
-            remote_device.recv(timeout=self.TIME_NUMBER_OF_SECOND_TIMEOUT_HANDSHAKE)
-        
-        udp_socket = await UdpSocket.create_from_socket(remote_device)
-        
-        return PtcpSocket(udp_socket)
-        
-    
-    # TODO: Custom type van maken
-    def _generate_header_authentication(self, port_local: int) -> str:
-        payload = self._generate_address_local_encrypted(port_local)
-        
-        return get_auth(
-            username=self._device.get_username(),
-            key=self._authentication_key,
-            nonce=self._authentication_nonce,
-            payload=payload,
-        )
-    
-    
-    def _generate_address_local_encrypted(self, port_local: int) -> str:
-        address_local = Address.create_from_ip_and_port(self.IP_LOOPBACK, port_local)
-        
-        return get_enc(self._authentication_key, self._authentication_nonce, address_local.get_address_string())
+        return PtcpSocket(udp_socket_device)

@@ -1,6 +1,7 @@
 from src.http.http_request import HttpRequest
 from src.http.http_response import HttpResponse
 from src.http.http_response_parser import HttpResponseParser
+from src.http.http_status_code import HttpStatusCode
 from src.logger import Logger
 from src.udp.udp_socket import UdpSocket
 
@@ -16,6 +17,9 @@ class UdpHttpClient:
         Logger.info(request.generate_http_request_bytes())
         
         response = await self._receive_response()
+        
+        if response.get_status_code() == HttpStatusCode.CONTINUE:
+            response = await self._receive_response()
         
         Logger.info(str(response))
         
