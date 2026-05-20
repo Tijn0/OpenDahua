@@ -47,6 +47,5 @@ class HttpResponse:
         return self.FORMAT_HTTP_RESPONSE_STRING.format(
             status_code=self._status_code,
             headers=self._all_header,
-            body= self._body.get_http_response_body_string(),
+            body=self._body,
         )
-    

@@ -9,7 +9,6 @@ class HttpHeaderParser:
     # Encoding constants.
     ENCODING_HEADER = "ascii"
 
-
     @classmethod
     def parse_all(cls, header_bytes: bytes) -> list[HttpHeader]:
         all_header_parsed = []
@@ -27,4 +26,3 @@ class HttpHeaderParser:
         key_bytes, _, value_bytes = header_bytes.strip().partition(cls.SEPARATOR_HEADER_KEY_VALUE)
         
         return HttpHeader(key_bytes.decode(cls.ENCODING_HEADER), value_bytes.decode(cls.ENCODING_HEADER))
-    

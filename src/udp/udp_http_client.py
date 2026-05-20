@@ -18,11 +18,16 @@ class UdpHttpClient:
         
         response = await self._receive_response()
         
+        Logger.info(str(response))
+
         if response.get_status_code() == HttpStatusCode.CONTINUE:
             response = await self._receive_response()
-        
-        Logger.info(str(response))
-        
+            
+            Logger.info(str(response))
+        else:
+            # Got response.
+            pass
+            
         return response
     
         
