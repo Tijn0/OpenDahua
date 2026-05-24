@@ -49,8 +49,9 @@ class UdpSocket:
         self._transport.sendto(data, addr=(self._address_remote.get_ip(), self._address_remote.get_port()))
 
     
-    async def receive(self) -> bytes:
-        data = await self._protocol.queue_receive.get()
+    async def receive(self, timeout: int|float = None) -> bytes:
+        data = await asyncio.wait_for(self._protocol.queue_receive.get(), timeout)
+        
         self._protocol.raise_if_error()
         
         if data is None:

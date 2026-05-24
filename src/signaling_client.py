@@ -174,8 +174,7 @@ class SignalingClient:
         ))
 
         try:
-            # TODO: Timeout weer laten werken.
-            data = await udp_socket_device.receive()
+            data = await udp_socket_device.receive(self.TIME_NUMBER_OF_SECOND_TIMEOUT_HANDSHAKE)
         except TimeoutError:
             raise Exception(self.ERROR_NO_RESPONSE_FROM_DEVICE)
 
