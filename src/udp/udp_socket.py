@@ -39,7 +39,6 @@ class UdpSocket:
         protocol = UdpProtocol()
         transport, _ = await loop.create_datagram_endpoint(
             lambda: protocol,
-            # remote_addr=(address_remote.get_ip(), address_remote.get_port()),
             local_addr=(cls.IP_WILDCARD, port_local),
         )
         
