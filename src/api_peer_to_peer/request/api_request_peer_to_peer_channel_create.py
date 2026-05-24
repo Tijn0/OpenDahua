@@ -2,9 +2,11 @@ from typing import Type
 
 from src.api.api_request import T
 from src.api_peer_to_peer.api_peer_to_peer_authentication_util import ApiPeerToPeerAuthenticationUtil
+from src.api_peer_to_peer.object.api_peer_to_peer_random_salt import ApiPeerToPeerRandomSalt
 from src.api_peer_to_peer.request.api_peer_to_peer_encryption_util import ApiPeerToPeerEncryptionUtil
 from src.api_peer_to_peer.request.api_request_peer_to_peer import ApiRequestPeerToPeer
 from src.api_peer_to_peer.response.api_response_peer_to_peer_channel_create import ApiResponsePeerToPeerChannelCreate
+from src.common_object.key import Key
 from src.common_object.nonce import Nonce
 from src.dahua.dahua_device import DahuaDevice
 from src.http.http_request_body import HttpRequestBody
@@ -21,11 +23,21 @@ class ApiRequestPeerToPeerChannelCreate(ApiRequestPeerToPeer[ApiResponsePeerToPe
     # Format constants.
     FORMAT_BODY = "<body>{part_body_authentication}<Identify>{authentication_identifier}</Identify><IpEncrptV2>true</IpEncrptV2><LocalAddr>{address_local_encrypted}</LocalAddr><version>5.0.0</version></body>"
 
-    def __init__(self, device: DahuaDevice, address_local: Address, authentication_identifier: AuthenticationIdentifier, nonce: Nonce):
+    def __init__(
+            self,
+            device: DahuaDevice,
+            address_local: Address,
+            authentication_identifier: AuthenticationIdentifier,
+            nonce: Nonce,
+            random_salt: ApiPeerToPeerRandomSalt,
+            key_authentication: Key,
+    ):
         self._device: DahuaDevice = device
         self._address_local: Address = address_local
         self._authentication_identifier: AuthenticationIdentifier = authentication_identifier
         self._nonce: Nonce = nonce
+        self._random_salt: ApiPeerToPeerRandomSalt = random_salt
+        self._key_authentication: Key = key_authentication
 
 
     def determine_endpoint(self) -> Url:
@@ -37,19 +49,17 @@ class ApiRequestPeerToPeerChannelCreate(ApiRequestPeerToPeer[ApiResponsePeerToPe
     
     
     def determine_body_or_none(self) -> HttpRequestBody | None:
-        key_authentication = ApiPeerToPeerAuthenticationUtil.generate_key_authentication(self._device)
-        # TODO: van deze helper af.
-        
         address_local_encrypted = ApiPeerToPeerEncryptionUtil.encrypt(
-            key_authentication,
+            self._key_authentication,
             self._nonce,
             self._address_local.get_address_string(),
         )
         part_body_authentication = ApiPeerToPeerAuthenticationUtil.generate_part_body_authentication(
             device=self._device,
-            key_authentication=key_authentication,
+            key_authentication=self._key_authentication,
             payload=address_local_encrypted,
             nonce=self._nonce,
+            random_salt=self._random_salt,
         )
 
         return HttpRequestBody(

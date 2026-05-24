@@ -1,8 +1,10 @@
 import base64
 import hashlib
+import json
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes, CipherContext
+from cryptography.hazmat.primitives.ciphers.algorithms import AES
 
 from src.common_object.key import Key
 from src.common_object.nonce import Nonce
@@ -20,6 +22,10 @@ class ApiPeerToPeerEncryptionUtil:
     
     # IV constants.
     IV = b"2z52*lk9o6HRyJrf"
+    IV_DEVICE_INFO = b"MydvJw*Iw1w&i^kk"
+    
+    # Key constants.
+    KEY_DEVICE_INFO = b"kRjmsUB&ezmdGLL67H#$ojw@XflcaIaf"
     
     @classmethod
     def encrypt(cls, key: Key, nonce: Nonce, data: str) -> str:
@@ -29,7 +35,7 @@ class ApiPeerToPeerEncryptionUtil:
         
         return base64.b64encode(data_encrypted).decode()
     
-    
+
     @classmethod
     def decrypt(cls, key: Key, nonce: Nonce, data: str) -> str:
         encryptor = cls._generate_encryptor(key, nonce)
@@ -53,3 +59,17 @@ class ApiPeerToPeerEncryptionUtil:
         cipher = Cipher(algorithms.AES(key_derived), modes.OFB(cls.IV), backend=default_backend())
         
         return cipher.encryptor()
+    
+    
+    @classmethod
+    def decrypt_device_info(cls, device_info_encrypted: str) -> dict:
+        key = Key(cls.KEY_DEVICE_INFO)
+        
+        cipher = Cipher(algorithms.AES(key.get_key_bytes()), modes.OFB(cls.IV_DEVICE_INFO), backend=default_backend())
+        
+        decryptor = cipher.decryptor()
+        
+        data_decrypted_bytes = decryptor.update(base64.b64decode(device_info_encrypted)) + decryptor.finalize()
+        data_decrypted = json.loads(data_decrypted_bytes.decode())
+        
+        return data_decrypted

@@ -1,10 +1,10 @@
 import base64
 import hashlib
 import hmac
-import os
 import time
 from datetime import datetime, timezone
 
+from src.api_peer_to_peer.object.api_peer_to_peer_random_salt import ApiPeerToPeerRandomSalt
 from src.common_object.key import Key
 from src.common_object.nonce import Nonce
 from src.dahua.dahua_device import DahuaDevice
@@ -82,11 +82,15 @@ class ApiPeerToPeerAuthenticationUtil:
     
     
     @classmethod
-    def generate_part_body_authentication(cls, device: DahuaDevice, key_authentication: Key, payload: str, nonce: Nonce) -> str:
+    def generate_part_body_authentication(
+            cls,
+            device: DahuaDevice,
+            key_authentication: Key,
+            payload: str,
+            nonce: Nonce,
+            random_salt: ApiPeerToPeerRandomSalt,
+    ) -> str:
         time_epoch_now = int(time.time())
-        
-        # TODO: Dit uit de device read response halen.
-        random_salt = os.getenv("RANDOM_SALT")
         
         message_authentication = cls.FORMAT_MESSAGE_AUTHENTICATION.format(
             nonce=nonce.get_nonce_string(),
@@ -99,20 +103,18 @@ class ApiPeerToPeerAuthenticationUtil:
             time_epoch_now=time_epoch_now,
             authentication_token=authentication_token,
             nonce=nonce.get_nonce_string(),
-            random_salt=random_salt,
+            random_salt=random_salt.get_random_salt_string(),
             username=device.get_username(),
         )
 
 
     # TODO: custom type.
     @classmethod
-    def generate_key_authentication(cls, device: DahuaDevice) -> Key:
+    def generate_key_authentication(cls, device: DahuaDevice, random_salt: ApiPeerToPeerRandomSalt) -> Key:
         # TODO: Dit uit de device read response halen.
-        random_salt = os.getenv("RANDOM_SALT")
-        
         payload = cls.FORMAT_AUTHENTICATION_KEY_PAYLOAD.format(
             username=device.get_username(),
-            random_salt=random_salt,
+            random_salt=random_salt.get_random_salt_string(),
             password=device.get_password(),
         )
         

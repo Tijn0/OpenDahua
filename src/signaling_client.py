@@ -1,12 +1,12 @@
 from src.api_peer_to_peer.api_client_peer_to_peer import ApiClientPeerToPeer
 from src.api_peer_to_peer.api_peer_to_peer_authentication_util import ApiPeerToPeerAuthenticationUtil
+from src.api_peer_to_peer.object.api_peer_to_peer_random_salt import ApiPeerToPeerRandomSalt
 from src.api_peer_to_peer.request.api_peer_to_peer_encryption_util import ApiPeerToPeerEncryptionUtil
 from src.api_peer_to_peer.request.api_request_peer_to_peer_channel_create import ApiRequestPeerToPeerChannelCreate
 from src.api_peer_to_peer.request.api_request_peer_to_peer_device_probe import ApiRequestPeerToPeerDeviceProbe
 from src.api_peer_to_peer.request.api_request_peer_to_peer_device_read import ApiRequestPeerToPeerDeviceRead
 from src.api_peer_to_peer.request.api_request_peer_to_peer_server_info_read import ApiRequestPeerToPeerServerInfoRead
 from src.api_peer_to_peer.request.api_request_peer_to_peer_server_probe import ApiRequestPeerToPeerServerProbe
-from src.common_object.key import Key
 from src.common_object.nonce import Nonce
 from src.dahua.dahua_device import DahuaDevice
 from src.dahua.dahua_peer_to_peer_connection_error import DahuaPeerToPeerConnectionError
@@ -33,6 +33,7 @@ class SignalingClient:
     # Index constants.
     INDEX_PTCP_RESPONSE_TRANSACTION_IDENTIFIER_START = 8
     INDEX_PTCP_RESPONSE_TRANSACTION_IDENTIFIER_END = 20
+    INDEX_LAST = -1
     
     # Number constants.
     NUMBER_OF_PACKET_HANDSHAKE = 4
@@ -41,6 +42,10 @@ class SignalingClient:
     # Time constants.
     TIME_NUMBER_OF_SECOND_TIMEOUT_HANDSHAKE = 1
     TIME_CONNECTION_ATTEMPT_INTERVAL = 5
+    
+    # Separator constants.
+    SEPARATOR_IP = ","
+    SEPARATOR_IP_PORT = ":"
 
     # Logging constants.
     LOGGING_CONNECTION_ATTEMPT_FAILED = "Connection attempt with device failed."
@@ -49,15 +54,14 @@ class SignalingClient:
         self._device = device
         
         self._authentication_identifier: AuthenticationIdentifier = AuthenticationIdentifier.create_random()
-        self._authentication_key: Key = ApiPeerToPeerAuthenticationUtil.generate_key_authentication(self._device)
-        
         self._udp_socket_main: UdpSocket|None = None
         
         self._client = ApiClientPeerToPeer()
         
         # TODO: dit misschien op een betere plek neerzetten
         self._address_device_local: Address|None = None
-        
+        self._random_salt: ApiPeerToPeerRandomSalt|None = None
+
         # TODO: ergens alle sockets closen.
 
     async def connect(self) -> PtcpSocket:
@@ -96,7 +100,11 @@ class SignalingClient:
         
         # TODO: random salt shit
         request_device_read = ApiRequestPeerToPeerDeviceRead(self._device)
-        await self._client.send_request(request_device_read, udp_socket_peer_to_peer)
+        response_device_read = await self._client.send_request(request_device_read, udp_socket_peer_to_peer)
+        
+        udp_socket_peer_to_peer.close()
+        
+        self._random_salt = response_device_read.get_random_salt()
         
     
     async def _determine_remote_peer_to_peer(self) -> UdpSocket:
@@ -117,17 +125,33 @@ class SignalingClient:
         address_main = Address.create_from_ip_and_port(self.MAIN_REMOTE_HOST, self.MAIN_REMOTE_PORT)
 
         udp_socket_device = await UdpSocket.create(address_main)
-
+        
+        key_authentication = ApiPeerToPeerAuthenticationUtil.generate_key_authentication(self._device, self._random_salt)
+        
         address_local = Address.create_from_ip_and_port(self.IP_LOOPBACK, udp_socket_device.get_address_local().get_port())
-        request_peer_to_peer_channel_create = ApiRequestPeerToPeerChannelCreate(self._device, address_local, self._authentication_identifier, Nonce.create_random())
+        request_peer_to_peer_channel_create = ApiRequestPeerToPeerChannelCreate(
+            device=self._device,
+            address_local=address_local,
+            authentication_identifier=self._authentication_identifier,
+            nonce=Nonce.create_random(),
+            random_salt=self._random_salt,
+            key_authentication=key_authentication,
+        )
         response_peer_to_peer_channel_create = await self._client.send_request(request_peer_to_peer_channel_create, udp_socket_device)
         
         address_device_local_encrypted = response_peer_to_peer_channel_create.get_address_device_local_encrypted()
         nonce = response_peer_to_peer_channel_create.get_nonce()
-        address_device_local_string = ApiPeerToPeerEncryptionUtil.decrypt(self._authentication_key, nonce, address_device_local_encrypted)
+        address_device_local_string = ApiPeerToPeerEncryptionUtil.decrypt(key_authentication, nonce, address_device_local_encrypted)
         
-        self._address_device_local = Address(address_device_local_string)
-
+        if self.SEPARATOR_IP in address_device_local_string:
+            # We got multiple IP addresses.
+            all_ip_string, _, port_string = address_device_local_string.partition(self.SEPARATOR_IP_PORT)
+            all_ip = all_ip_string.split(self.SEPARATOR_IP)
+            
+            self._address_device_local = Address.create_from_ip_and_port(all_ip[self.INDEX_LAST], int(port_string))
+        else:
+            self._address_device_local = Address(address_device_local_string)
+        
         address_device_public = response_peer_to_peer_channel_create.get_address_device_public()
         
         udp_socket_device.set_address_remote(address_device_public)
