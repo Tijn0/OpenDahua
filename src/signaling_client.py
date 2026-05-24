@@ -1,13 +1,15 @@
 from src.api_peer_to_peer.api_client_peer_to_peer import ApiClientPeerToPeer
+from src.api_peer_to_peer.api_peer_to_peer_authentication_util import ApiPeerToPeerAuthenticationUtil
+from src.api_peer_to_peer.request.api_peer_to_peer_encryption_util import ApiPeerToPeerEncryptionUtil
 from src.api_peer_to_peer.request.api_request_peer_to_peer_channel_create import ApiRequestPeerToPeerChannelCreate
 from src.api_peer_to_peer.request.api_request_peer_to_peer_device_probe import ApiRequestPeerToPeerDeviceProbe
 from src.api_peer_to_peer.request.api_request_peer_to_peer_device_read import ApiRequestPeerToPeerDeviceRead
 from src.api_peer_to_peer.request.api_request_peer_to_peer_server_info_read import ApiRequestPeerToPeerServerInfoRead
 from src.api_peer_to_peer.request.api_request_peer_to_peer_server_probe import ApiRequestPeerToPeerServerProbe
+from src.common_object.key import Key
 from src.common_object.nonce import Nonce
 from src.dahua.dahua_device import DahuaDevice
 from src.dahua.dahua_peer_to_peer_connection_error import DahuaPeerToPeerConnectionError
-from src.helpers import UDP, get_dec, get_auth, get_key, get_enc
 from src.logger import Logger
 from src.object.address import Address
 from src.object.authentication_identifier import AuthenticationIdentifier
@@ -47,10 +49,8 @@ class SignalingClient:
         self._device = device
         
         self._authentication_identifier: AuthenticationIdentifier = AuthenticationIdentifier.create_random()
-        self._authentication_key: bytes = get_key(self._device.get_username(), self._device.get_password())
-        self._authentication_nonce: int = -1
+        self._authentication_key: Key = ApiPeerToPeerAuthenticationUtil.generate_key_authentication(self._device)
         
-        self._remote_main: UDP = UDP(self.MAIN_REMOTE_HOST, self.MAIN_REMOTE_PORT)
         self._udp_socket_main: UdpSocket|None = None
         
         self._client = ApiClientPeerToPeer()
@@ -61,7 +61,9 @@ class SignalingClient:
         # TODO: ergens alle sockets closen.
 
     async def connect(self) -> PtcpSocket:
-        self._udp_socket_main = await UdpSocket.create_from_socket(self._remote_main)
+        self._udp_socket_main = await UdpSocket.create(
+            Address.create_from_ip_and_port(self.MAIN_REMOTE_HOST, self.MAIN_REMOTE_PORT),
+        )
         await self._probe()
         await self._probe_device()
         
@@ -112,8 +114,8 @@ class SignalingClient:
         # We set the remote device connection to the host server first.
         # We use this connection to open up a NAT mapping by making a request to the peer-to-peer server.
         # Then we reuse the connection to perform a UDP hole punch with our peer netting us a connection.
-        address_main = Address.create_from_ip_and_port(self._remote_main.rhost, self._remote_main.rport)
-        
+        address_main = Address.create_from_ip_and_port(self.MAIN_REMOTE_HOST, self.MAIN_REMOTE_PORT)
+
         udp_socket_device = await UdpSocket.create(address_main)
 
         address_local = Address.create_from_ip_and_port(self.IP_LOOPBACK, udp_socket_device.get_address_local().get_port())
@@ -122,7 +124,7 @@ class SignalingClient:
         
         address_device_local_encrypted = response_peer_to_peer_channel_create.get_address_device_local_encrypted()
         nonce = response_peer_to_peer_channel_create.get_nonce()
-        address_device_local_string = get_dec(self._authentication_key, nonce.get_nonce_string(), address_device_local_encrypted)
+        address_device_local_string = ApiPeerToPeerEncryptionUtil.decrypt(self._authentication_key, nonce, address_device_local_encrypted)
         
         self._address_device_local = Address(address_device_local_string)
 

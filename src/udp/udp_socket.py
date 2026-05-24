@@ -1,7 +1,6 @@
 import asyncio
 from asyncio import DatagramTransport
 
-from src.helpers import UDP
 from src.logger import Logger
 from src.object.address import Address
 from src.udp.udp_protocol import UdpProtocol
@@ -46,21 +45,6 @@ class UdpSocket:
         
         return cls(transport, protocol, address_remote)
     
-    
-    @classmethod
-    async def create_from_socket(cls, socket: UDP) -> UdpSocket:
-        loop = asyncio.get_running_loop()
-        
-        address_remote = Address.create_from_ip_and_port(socket.rhost, socket.rport)
-        
-        protocol = UdpProtocol()
-        transport, _ = await loop.create_datagram_endpoint(
-            lambda: protocol,
-            sock=socket,
-        )
-        
-        return cls(transport, protocol, address_remote)
-
 
     def send(self, data: bytes) -> None:
         self._transport.sendto(data, addr=(self._address_remote.get_ip(), self._address_remote.get_port()))

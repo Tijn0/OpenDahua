@@ -5,6 +5,7 @@ import os
 import time
 from datetime import datetime, timezone
 
+from src.common_object.key import Key
 from src.common_object.nonce import Nonce
 from src.dahua.dahua_device import DahuaDevice
 from src.http.http_header import HttpHeader
@@ -81,7 +82,7 @@ class ApiPeerToPeerAuthenticationUtil:
     
     
     @classmethod
-    def generate_part_body_authentication(cls, device: DahuaDevice, authentication_key: bytes, payload: str, nonce: Nonce) -> str:
+    def generate_part_body_authentication(cls, device: DahuaDevice, key_authentication: Key, payload: str, nonce: Nonce) -> str:
         time_epoch_now = int(time.time())
         
         # TODO: Dit uit de device read response halen.
@@ -92,7 +93,7 @@ class ApiPeerToPeerAuthenticationUtil:
             time_epoch_now=time_epoch_now,
             payload=payload,
         ).encode()
-        authentication_token = base64.b64encode(hmac.new(authentication_key, message_authentication, hashlib.sha256).digest()).decode()
+        authentication_token = base64.b64encode(hmac.new(key_authentication.get_key_bytes(), message_authentication, hashlib.sha256).digest()).decode()
         
         return cls.FORMAT_PART_BODY_AUTHENTICATION.format(
             time_epoch_now=time_epoch_now,
@@ -102,9 +103,10 @@ class ApiPeerToPeerAuthenticationUtil:
             username=device.get_username(),
         )
 
+
     # TODO: custom type.
     @classmethod
-    def generate_authentication_key(cls, device: DahuaDevice) -> bytes:
+    def generate_key_authentication(cls, device: DahuaDevice) -> Key:
         # TODO: Dit uit de device read response halen.
         random_salt = os.getenv("RANDOM_SALT")
         
@@ -114,4 +116,6 @@ class ApiPeerToPeerAuthenticationUtil:
             password=device.get_password(),
         )
         
-        return hashlib.md5(payload.encode()).hexdigest().upper().encode()
+        key_bytes = hashlib.md5(payload.encode()).hexdigest().upper().encode()
+        
+        return Key(key_bytes)

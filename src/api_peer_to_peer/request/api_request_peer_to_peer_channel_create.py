@@ -2,11 +2,11 @@ from typing import Type
 
 from src.api.api_request import T
 from src.api_peer_to_peer.api_peer_to_peer_authentication_util import ApiPeerToPeerAuthenticationUtil
+from src.api_peer_to_peer.request.api_peer_to_peer_encryption_util import ApiPeerToPeerEncryptionUtil
 from src.api_peer_to_peer.request.api_request_peer_to_peer import ApiRequestPeerToPeer
 from src.api_peer_to_peer.response.api_response_peer_to_peer_channel_create import ApiResponsePeerToPeerChannelCreate
 from src.common_object.nonce import Nonce
 from src.dahua.dahua_device import DahuaDevice
-from src.helpers import get_enc
 from src.http.http_request_body import HttpRequestBody
 from src.http.http_request_method import HttpRequestMethod
 from src.object.address import Address
@@ -37,16 +37,17 @@ class ApiRequestPeerToPeerChannelCreate(ApiRequestPeerToPeer[ApiResponsePeerToPe
     
     
     def determine_body_or_none(self) -> HttpRequestBody | None:
-        authentication_key = ApiPeerToPeerAuthenticationUtil.generate_authentication_key(self._device)
+        key_authentication = ApiPeerToPeerAuthenticationUtil.generate_key_authentication(self._device)
         # TODO: van deze helper af.
-        address_local_encrypted = get_enc(
-            authentication_key,
-            self._nonce.get_nonce_string(),
+        
+        address_local_encrypted = ApiPeerToPeerEncryptionUtil.encrypt(
+            key_authentication,
+            self._nonce,
             self._address_local.get_address_string(),
         )
         part_body_authentication = ApiPeerToPeerAuthenticationUtil.generate_part_body_authentication(
             device=self._device,
-            authentication_key=authentication_key,
+            key_authentication=key_authentication,
             payload=address_local_encrypted,
             nonce=self._nonce,
         )
