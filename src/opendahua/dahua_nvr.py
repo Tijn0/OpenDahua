@@ -66,7 +66,7 @@ class DahuaNVR:
         await self._client.disconnect()
         
         
-    async def get_name(self) -> str:
+    async def get_nvr_name(self) -> str:
         """
         Get the name of the NVR.
         :return:
@@ -187,7 +187,7 @@ class DahuaNVR:
         
         
     async def _generate_filename_video(self, video: DahuaVideo) -> str:
-        name_nvr = await self.get_name()
+        name_nvr = await self.get_nvr_name()
         
         return self.FORMAT_FILENAME_VIDEO.format(
             name_nvr=name_nvr,
