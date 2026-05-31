@@ -5,7 +5,7 @@ from typing import Any
 
 class UdpProtocol(asyncio.DatagramProtocol):
     def __init__(self) -> None:
-        self.queue_receive = asyncio.Queue()
+        self.queue_receive: asyncio.Queue[bytes] = asyncio.Queue()
         self._error: Exception|None = None
         
     def connection_made(self, transport: DatagramTransport) -> None:
