@@ -14,7 +14,7 @@ class Logger:
     FORMAT_TIMESTAMP = "%Y-%m-%d %H:%M:%S.%f"
     
     # Log level.
-    LOG_LEVEL = LogLevel(os.getenv("LOG_LEVEL"))
+    LOG_LEVEL = LogLevel(os.getenv("OPENDAHUA_LOG_LEVEL", "ERROR"))
     
     
     @classmethod
