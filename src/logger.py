@@ -1,5 +1,6 @@
 from datetime import datetime
 import os
+from typing import Any
 
 from src.object.log_level import LogLevel
 
@@ -17,27 +18,27 @@ class Logger:
     
     
     @classmethod
-    def debug(cls, message: str|bytes) -> None:
+    def debug(cls, message: Any) -> None:
         cls._log(LogLevel.DEBUG, message)
         
         
     @classmethod
-    def info(cls, message: str|bytes) -> None:
+    def info(cls, message: Any) -> None:
         cls._log(LogLevel.INFO, message)
     
     
     @classmethod
-    def warning(cls, message: str|bytes) -> None:
+    def warning(cls, message: Any) -> None:
         cls._log(LogLevel.WARNING, message)
     
     
     @classmethod
-    def error(cls, message: str|bytes) -> None:
+    def error(cls, message: Any) -> None:
         cls._log(LogLevel.ERROR, message)
 
 
     @classmethod
-    def _log(cls, log_level: LogLevel, message: str | bytes) -> None:
+    def _log(cls, log_level: LogLevel, message: Any) -> None:
         if cls._should_log(log_level):
             timestamp = cls._generate_timestamp_string()
             
@@ -71,4 +72,3 @@ class Logger:
     @classmethod
     def _generate_timestamp_string(cls) -> str:
         return datetime.now().strftime(cls.FORMAT_TIMESTAMP)
-    

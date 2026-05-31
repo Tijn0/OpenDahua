@@ -53,64 +53,59 @@ class SignalingClient:
     def __init__(self, device: DahuaDevice):
         self._device = device
         
-        self._authentication_identifier: AuthenticationIdentifier = AuthenticationIdentifier.create_random()
-        self._udp_socket_main: UdpSocket|None = None
-        
         self._client = ApiClientPeerToPeer()
+        self._authentication_identifier: AuthenticationIdentifier = AuthenticationIdentifier.create_random()
         
-        # TODO: dit misschien op een betere plek neerzetten
-        self._address_device_local: Address|None = None
-        self._random_salt: ApiPeerToPeerRandomSalt|None = None
-
-        # TODO: ergens alle sockets closen.
 
     async def connect(self) -> PtcpSocket:
-        self._udp_socket_main = await UdpSocket.create(
-            Address.create_from_ip_and_port(self.MAIN_REMOTE_HOST, self.MAIN_REMOTE_PORT),
-        )
-        await self._probe()
-        await self._probe_device()
+        udp_socket_main = await self._probe()
+        random_salt = await self._determine_random_salt(udp_socket_main)
+        udp_socket_main.close()
         
         number_of_attempt_current = 0
         
         while number_of_attempt_current <= self.NUMBER_OF_ATTEMPT_CONNECTION:
             try:
-                remote_device: UdpSocket = await self._perform_udp_hole_punch()
+                udp_socket_device, address_local_device = await self._determine_udp_socket_device(random_salt)
                 
-                return await self._perform_ptcp_handshake(remote_device)
-            # TODO: Dit specifieker afvangen
-            except Exception as exception:
-                print(exception)
-                number_of_attempt_current += 1
+                return await self._determine_ptcp_socket_device(udp_socket_device, address_local_device)
+            except DahuaPeerToPeerConnectionError as exception:
+                Logger.error(exception)
                 Logger.warning(self.LOGGING_CONNECTION_ATTEMPT_FAILED)
                 
+                number_of_attempt_current += 1
+
         raise DahuaPeerToPeerConnectionError()
 
 
-    async def _probe(self) -> None:
-        await self._client.send_request(ApiRequestPeerToPeerServerProbe(), self._udp_socket_main)
+    async def _probe(self) -> UdpSocket:
+        udp_socket_main = await UdpSocket.create(
+            Address.create_from_ip_and_port(self.MAIN_REMOTE_HOST, self.MAIN_REMOTE_PORT),
+        )
+        await self._client.send_request(ApiRequestPeerToPeerServerProbe(), udp_socket_main)
         
+        return udp_socket_main
+
         
-    async def _probe_device(self) -> None:
+    async def _determine_random_salt(self, udp_socket_main: UdpSocket) -> ApiPeerToPeerRandomSalt:
         # TODO: Error als device niet bestaat.
-        udp_socket_peer_to_peer = await self._determine_remote_peer_to_peer()
+        udp_socket_peer_to_peer = await self._determine_remote_peer_to_peer(udp_socket_main)
         
         api_request_probe_device = ApiRequestPeerToPeerDeviceProbe(self._device)
         await self._client.send_request(api_request_probe_device, udp_socket_peer_to_peer)
         
-        # TODO: random salt shit
         request_device_read = ApiRequestPeerToPeerDeviceRead(self._device)
         response_device_read = await self._client.send_request(request_device_read, udp_socket_peer_to_peer)
         
         udp_socket_peer_to_peer.close()
         
-        self._random_salt = response_device_read.get_random_salt()
-        
+        return response_device_read.get_random_salt()
     
-    async def _determine_remote_peer_to_peer(self) -> UdpSocket:
+    
+    async def _determine_remote_peer_to_peer(self, udp_socket_main: UdpSocket) -> UdpSocket:
         response = await self._client.send_request(
             ApiRequestPeerToPeerServerInfoRead(self._device),
-            self._udp_socket_main,
+            udp_socket_main,
         )
         
         address_server_peer_to_peer = response.get_address_server_upstream()
@@ -118,7 +113,7 @@ class SignalingClient:
         return await UdpSocket.create(address_server_peer_to_peer)
     
     
-    async def _perform_udp_hole_punch(self) -> UdpSocket:
+    async def _determine_udp_socket_device(self, random_salt: ApiPeerToPeerRandomSalt) -> tuple[UdpSocket, Address]:
         # We set the remote device connection to the host server first.
         # We use this connection to open up a NAT mapping by making a request to the peer-to-peer server.
         # Then we reuse the connection to perform a UDP hole punch with our peer netting us a connection.
@@ -126,7 +121,7 @@ class SignalingClient:
 
         udp_socket_device = await UdpSocket.create(address_main)
         
-        key_authentication = ApiPeerToPeerAuthenticationUtil.generate_key_authentication(self._device, self._random_salt)
+        key_authentication = ApiPeerToPeerAuthenticationUtil.generate_key_authentication(self._device, random_salt)
         
         address_local = Address.create_from_ip_and_port(self.IP_LOOPBACK, udp_socket_device.get_address_local().get_port())
         request_peer_to_peer_channel_create = ApiRequestPeerToPeerChannelCreate(
@@ -134,7 +129,7 @@ class SignalingClient:
             address_local=address_local,
             authentication_identifier=self._authentication_identifier,
             nonce=Nonce.create_random(),
-            random_salt=self._random_salt,
+            random_salt=random_salt,
             key_authentication=key_authentication,
         )
         response_peer_to_peer_channel_create = await self._client.send_request(request_peer_to_peer_channel_create, udp_socket_device)
@@ -148,18 +143,22 @@ class SignalingClient:
             all_ip_string, _, port_string = address_device_local_string.partition(self.SEPARATOR_IP_PORT)
             all_ip = all_ip_string.split(self.SEPARATOR_IP)
             
-            self._address_device_local = Address.create_from_ip_and_port(all_ip[self.INDEX_LAST], int(port_string))
+            address_device_local = Address.create_from_ip_and_port(all_ip[self.INDEX_LAST], int(port_string))
         else:
-            self._address_device_local = Address(address_device_local_string)
+            address_device_local = Address(address_device_local_string)
         
         address_device_public = response_peer_to_peer_channel_create.get_address_device_public()
         
         udp_socket_device.set_address_remote(address_device_public)
         
-        return udp_socket_device
+        return udp_socket_device, address_device_local
     
     
-    async def _perform_ptcp_handshake(self, udp_socket_device: UdpSocket) -> PtcpSocket:
+    async def _determine_ptcp_socket_device(
+            self,
+            udp_socket_device: UdpSocket,
+            address_device_local: Address,
+    ) -> PtcpSocket:
         address_device = udp_socket_device.get_address_remote()
         cookie = Cookie.create_random()
         
@@ -176,7 +175,7 @@ class SignalingClient:
         try:
             data = await udp_socket_device.receive(self.TIME_NUMBER_OF_SECOND_TIMEOUT_HANDSHAKE)
         except TimeoutError:
-            raise Exception(self.ERROR_NO_RESPONSE_FROM_DEVICE)
+            raise DahuaPeerToPeerConnectionError(self.ERROR_NO_RESPONSE_FROM_DEVICE)
 
         transaction_identifier_response = TransactionIdentifier(data[self.INDEX_PTCP_RESPONSE_TRANSACTION_IDENTIFIER_START:self.INDEX_PTCP_RESPONSE_TRANSACTION_IDENTIFIER_END])
         udp_socket_device.send((
@@ -186,9 +185,9 @@ class SignalingClient:
                 + b"\x7f\xd6\xff\xf7"
                 + self._authentication_identifier.get_authentication_identifier_bytes_inverted()
                 + b"\xff\xfb\xff\xf7\xff\xfe"
-                + self._address_device_local.get_address_encoded()
+                + address_device_local.get_address_encoded()
         ))
-        await udp_socket_device.receive()
+        await udp_socket_device.receive(timeout=self.TIME_NUMBER_OF_SECOND_TIMEOUT_HANDSHAKE)
 
         for _ in range(self.NUMBER_OF_PACKET_HANDSHAKE):
             udp_socket_device.send((
@@ -201,6 +200,6 @@ class SignalingClient:
                     + b"\xa8\x13\x3f\x57\xfe\x37"
 
             ))
-            await udp_socket_device.receive()
+            await udp_socket_device.receive(timeout=self.TIME_NUMBER_OF_SECOND_TIMEOUT_HANDSHAKE)
             
         return PtcpSocket(udp_socket_device)
