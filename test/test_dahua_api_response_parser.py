@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from src.api_dahua.api_dahua_body_parser import ApiDahuaBodyParser
+from opendahua.api_dahua.api_dahua_body_parser import ApiDahuaBodyParser
 
 
 class TestDahuaApiResponseParser:

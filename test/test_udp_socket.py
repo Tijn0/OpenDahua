@@ -1,12 +1,11 @@
 import asyncio
 import random
 
-from src.helpers import UDP
-from src.logger import Logger
-from src.object.address import Address
-from src.ptcp.ptcp_packet_parser import PtcpPacketParser
-from src.udp.udp_protocol import UdpProtocol
-from src.udp.udp_socket import UdpSocket
+from opendahua.logger import Logger
+from opendahua.object.address import Address
+from opendahua.ptcp.ptcp_packet_parser import PtcpPacketParser
+from opendahua.udp.udp_protocol import UdpProtocol
+from opendahua.udp.udp_socket import UdpSocket
 
 
 class TestUdpSocket(UdpSocket):

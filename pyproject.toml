@@ -1,7 +1,7 @@
 [project]
-name = "dahua"
-version = "0.1.0"
-description = "Add your description here"
+name = "OpenDahua"
+version = "1.0.0"
+description = "SDK for interacting with Dahua NVRs over their peer-to-peer protocol."
 requires-python = ">=3.14"
 dependencies = [
     "aiofiles>=25.1.0",
@@ -13,3 +13,10 @@ dependencies = [
 dev = [
     "pytest==9.0.3"
 ]
+
+[tool.uv]
+package = true
+
+[build-system]
+requires = ["uv_build>=0.11.17,<0.12"]
+build-backend = "uv_build"
