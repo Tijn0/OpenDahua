@@ -7,6 +7,9 @@ from src.udp.udp_socket import UdpSocket
 
 
 class UdpHttpClient:
+    # Timeout constants.
+    TIMEOUT_NUMBER_OF_SECOND = 30
+    
     def __init__(self, udp_socket: UdpSocket):
         self._udp_socket: UdpSocket = udp_socket
         
@@ -35,7 +38,7 @@ class UdpHttpClient:
         response_parser = HttpResponseParser()
         
         while not response_parser.is_complete():
-            response_chunk = await self._udp_socket.receive()
+            response_chunk = await self._udp_socket.receive(self.TIMEOUT_NUMBER_OF_SECOND)
             
             response_parser.feed(response_chunk)
         

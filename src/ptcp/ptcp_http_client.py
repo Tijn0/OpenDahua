@@ -12,6 +12,9 @@ class PtcpHttpClient:
     # Response constants.
     RESPONSE_EMPTY = b""
     
+    # Timeout constants.
+    TIMEOUT_NUMBER_OF_SECOND = 30
+    
     def __init__(self, ptcp_socket: PtcpSocket):
         self._ptcp_socket: PtcpSocket = ptcp_socket
         
@@ -42,7 +45,7 @@ class PtcpHttpClient:
         response_parser = HttpResponseParser()
         
         while not response_parser.is_complete():
-            response_chunk = await self._ptcp_socket.receive()
+            response_chunk = await self._ptcp_socket.receive(self.TIMEOUT_NUMBER_OF_SECOND)
             
             response_parser.feed(response_chunk)
 

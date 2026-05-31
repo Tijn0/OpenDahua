@@ -100,8 +100,8 @@ class PtcpSocket:
             self._queue_send.put_nowait(PtcpPacketBodyData(self._realm_identifier, data))
     
     
-    async def receive(self) -> bytes:
-        return await self._queue_receive.get()
+    async def receive(self, timeout: int|float = None) -> bytes:
+        return await asyncio.wait_for(self._queue_receive.get(), timeout)
         
         
     def _handle_receive(self, data: bytes) -> None:
