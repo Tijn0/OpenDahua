@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime, timedelta
 import os
 
-from opendahua.dahua.dahua_nvr import DahuaNVR
+from opendahua.dahua_nvr import DahuaNVR
 
 SERIAL_NUMBER = os.getenv("SERIAL_NUMBER")
 USERNAME = os.getenv("USERNAME")
