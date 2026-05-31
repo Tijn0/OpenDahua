@@ -13,7 +13,7 @@ class ApiRequestPeerToPeerServerInfoRead(ApiRequestPeerToPeer[ApiResponsePeerToP
     # Request constants.
     REQUEST_ENDPOINT = "/online/p2psrv/{serial_number}"
     
-    def __init__(self, device: DahuaDevice):
+    def __init__(self, device: DahuaDevice) -> None:
         self._device: DahuaDevice = device
         
         

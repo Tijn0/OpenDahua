@@ -16,7 +16,7 @@ class ApiRequestDahuaMediaFileDownload(ApiRequestDahua[ApiResponseDahuaMediaFile
     # Character constants.
     CHARACTER_LEADING_SLASH = "/"
 
-    def __init__(self, path: Path):
+    def __init__(self, path: Path) -> None:
         self._path: Path = path
     
     

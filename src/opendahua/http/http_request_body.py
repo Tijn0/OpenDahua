@@ -8,7 +8,7 @@ class HttpRequestBody:
     ENCODING_BODY = 'utf-8'
     
     
-    def __init__(self, http_request_body_string: str):
+    def __init__(self, http_request_body_string: str) -> None:
         self._http_request_body_string: str = http_request_body_string
         
         

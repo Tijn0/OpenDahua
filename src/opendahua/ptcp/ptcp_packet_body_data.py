@@ -11,7 +11,7 @@ class PtcpPacketBodyData(PtcpPacketBody):
     # Format constants.
     FORMAT_HEADER = "!LLL"
 
-    def __init__(self, realm_identifier: PtcpRealmIdentifier, payload: bytes):
+    def __init__(self, realm_identifier: PtcpRealmIdentifier, payload: bytes) -> None:
         length = len(payload) | self.FLAG_PACKET_DATA
         ptcp_packet_body_bytes = pack(self.FORMAT_HEADER, length, realm_identifier.get_ptcp_realm_identifier_int(), 0) + payload
         

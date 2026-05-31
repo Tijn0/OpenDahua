@@ -1,6 +1,6 @@
 
 class DahuaDevice:
-    def __init__(self, serial_number: str, username: str, password: str):
+    def __init__(self, serial_number: str, username: str, password: str) -> None:
         self._serial_number: str = serial_number
         self._username: str = username
         self._password: str = password

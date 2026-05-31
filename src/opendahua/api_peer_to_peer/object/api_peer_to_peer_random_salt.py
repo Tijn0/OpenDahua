@@ -1,7 +1,7 @@
 
 
 class ApiPeerToPeerRandomSalt:
-    def __init__(self, random_salt_string: str):
+    def __init__(self, random_salt_string: str) -> None:
         self._random_salt_string: str = random_salt_string
         
     def get_random_salt_string(self) -> str:

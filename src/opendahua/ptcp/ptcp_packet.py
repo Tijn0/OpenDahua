@@ -20,7 +20,7 @@ class PtcpPacket:
             packet_identifier_local: PtcpPacketIdentifier,
             packet_identifier_local_received_last: PtcpPacketIdentifier,
             body: PtcpPacketBody,
-    ):
+    ) -> None:
         self._offset_sent: int = offset_sent
         self._offset_received: int = offset_received
         self._packet_identifier: PtcpPacketIdentifier = packet_identifier

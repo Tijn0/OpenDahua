@@ -4,7 +4,7 @@ from typing import Any
 
 
 class UdpProtocol(asyncio.DatagramProtocol):
-    def __init__(self):
+    def __init__(self) -> None:
         self.queue_receive = asyncio.Queue()
         self._error: Exception|None = None
         
@@ -30,4 +30,3 @@ class UdpProtocol(asyncio.DatagramProtocol):
             self._error = None
             
             raise error
-    

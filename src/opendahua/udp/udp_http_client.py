@@ -10,7 +10,7 @@ class UdpHttpClient:
     # Timeout constants.
     TIMEOUT_NUMBER_OF_SECOND = 30
     
-    def __init__(self, udp_socket: UdpSocket):
+    def __init__(self, udp_socket: UdpSocket) -> None:
         self._udp_socket: UdpSocket = udp_socket
         
         

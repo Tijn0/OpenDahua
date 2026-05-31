@@ -32,7 +32,7 @@ class DahuaNVR:
     SUFFIX_PATH_DIRECTORY = "/"
     SUFFIX_EMPTY = ""
 
-    def __init__(self, serial_number: str, username: str, password: str):
+    def __init__(self, serial_number: str, username: str, password: str) -> None:
         self._device: DahuaDevice = DahuaDevice(serial_number, username, password)
         self._client: ApiClientDahua = ApiClientDahua(self._device)
         

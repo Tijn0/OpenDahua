@@ -23,7 +23,7 @@ class PtcpPacketBodyBind(PtcpPacketBody):
         realm_identifier: PtcpRealmIdentifier,
         port: int,
         ip: str = IP_LOOPBACK,
-    ):
+    ) -> None:
         ip_int = self._ip_to_int(ip)
 
         body = pack(

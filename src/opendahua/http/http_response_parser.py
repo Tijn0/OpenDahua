@@ -26,7 +26,7 @@ class HttpResponseParser:
     # Index constants.
     INDEX_NOT_FOUND = -1
     
-    def __init__(self):
+    def __init__(self) -> None:
         self._buffer: bytearray = bytearray()
         self._index_header_end: int|None = None
         self._content_length: int|None = None

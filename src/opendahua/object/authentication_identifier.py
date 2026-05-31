@@ -8,7 +8,7 @@ class AuthenticationIdentifier:
     # Character constants.
     CHARACTER_SPACE = " "
     
-    def __init__(self, authentication_identifier_bytes: bytes):
+    def __init__(self, authentication_identifier_bytes: bytes) -> None:
         self._authentication_identifier_bytes: bytes = authentication_identifier_bytes
     
     @staticmethod

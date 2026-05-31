@@ -14,7 +14,7 @@ class ApiRequestDahuaMediaFileFinderClose(ApiRequestDahua[ApiResponseDahuaMediaF
     REQUEST_ENDPOINT = "/cgi-bin/mediaFileFind.cgi?action=destroy&object={media_file_finder_identifier}"
     
     
-    def __init__(self, media_file_finder_identifier: ApiDahuaMediaFileFinderIdentifier):
+    def __init__(self, media_file_finder_identifier: ApiDahuaMediaFileFinderIdentifier) -> None:
         self._media_file_finder_identifier: ApiDahuaMediaFileFinderIdentifier = media_file_finder_identifier
     
     

@@ -10,7 +10,7 @@ class PtcpPacketIdentifier:
     COUNT_INCREMENT = 1
     COUNT_DECREMENT = 1
 
-    def __init__(self, ptcp_packet_identifier_int: int):
+    def __init__(self, ptcp_packet_identifier_int: int) -> None:
         self._ptcp_packet_identifier_int: int = ptcp_packet_identifier_int
         
     @classmethod
@@ -36,4 +36,3 @@ class PtcpPacketIdentifier:
     
     def get_ptcp_packet_identifier_int(self) -> int:
         return self._ptcp_packet_identifier_int
-    

@@ -12,7 +12,7 @@ class ApiRequestDahuaTimeCurrentRead(ApiRequestDahua[ApiResponseDahuaTimeCurrent
     REQUEST_ENDPOINT = "/cgi-bin/global.cgi?action=getCurrentTime"
     
     
-    def __init__(self):
+    def __init__(self) -> None:
         pass
     
     

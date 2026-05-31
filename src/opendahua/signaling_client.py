@@ -51,7 +51,7 @@ class SignalingClient:
     # Logging constants.
     LOGGING_CONNECTION_ATTEMPT_FAILED = "Connection attempt with device failed. ({number_of_attempt_current}/{number_of_attempt_maximum})"
 
-    def __init__(self, device: DahuaDevice):
+    def __init__(self, device: DahuaDevice) -> None:
         self._device = device
         
         self._client = ApiClientPeerToPeer()

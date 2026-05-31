@@ -5,7 +5,7 @@ class Url:
     # Path constants.
     PATH_ROOT = "/"
     
-    def __init__(self, url_string: str):
+    def __init__(self, url_string: str) -> None:
         self._assert_is_valid(url_string)
         
         self._url_string: str = url_string

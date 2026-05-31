@@ -29,7 +29,7 @@ class HttpRequest:
                  method: HttpRequestMethod,
                  url: Url,
                  all_header: list[HttpHeader]|None = None,
-                 body: HttpRequestBody|None = None):
+                 body: HttpRequestBody|None = None) -> None:
         if all_header is None:
             all_header = []
         else:

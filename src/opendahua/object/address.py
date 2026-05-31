@@ -15,7 +15,7 @@ class Address:
     # Encoding constants.
     ENCODING_LENGTH_NUMBER_OF_BYTE_PORT = 2
 
-    def __init__(self, address_string: str):
+    def __init__(self, address_string: str) -> None:
         self._address_string: str = address_string
         
     @staticmethod
@@ -39,4 +39,3 @@ class Address:
         address_encoded = port_encoded + ip_encoded
         
         return bytes(0xFF - byte for byte in address_encoded)
-    

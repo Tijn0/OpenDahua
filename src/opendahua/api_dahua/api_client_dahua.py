@@ -21,7 +21,7 @@ class ApiClientDahua:
     ERROR_NOT_CONNECTED = "You have to use connect() to connect to the device before making API requests."
 
 
-    def __init__(self, device: DahuaDevice):
+    def __init__(self, device: DahuaDevice) -> None:
         self._device: DahuaDevice = device
         self._signaling_client: SignalingClient = SignalingClient(device)
         self._http_client: PtcpHttpClient|None = None

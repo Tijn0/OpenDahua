@@ -15,7 +15,7 @@ class PtcpHttpClient:
     # Timeout constants.
     TIMEOUT_NUMBER_OF_SECOND = 30
     
-    def __init__(self, ptcp_socket: PtcpSocket):
+    def __init__(self, ptcp_socket: PtcpSocket) -> None:
         self._ptcp_socket: PtcpSocket = ptcp_socket
         
         

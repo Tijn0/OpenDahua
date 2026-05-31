@@ -5,5 +5,5 @@ class PtcpPacketBodyHeartbeat(PtcpPacketBody):
     # Body constants.
     BODY_HEARTBEAT = b"\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
     
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(self.BODY_HEARTBEAT)

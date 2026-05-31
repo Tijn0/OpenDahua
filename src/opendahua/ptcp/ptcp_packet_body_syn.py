@@ -5,5 +5,5 @@ class PtcpPacketBodySyn(PtcpPacketBody):
     # Body constants.
     BODY_SYN = b"\x00\x03\x01\x00"
     
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(self.BODY_SYN)

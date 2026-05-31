@@ -25,7 +25,7 @@ class UdpSocket:
     INFO_SOCKNAME = "sockname"
 
     
-    def __init__(self, transport: DatagramTransport, protocol: UdpProtocol, address_remote: Address):
+    def __init__(self, transport: DatagramTransport, protocol: UdpProtocol, address_remote: Address) -> None:
         self._transport = transport
         self._protocol = protocol
         

@@ -5,7 +5,7 @@ class HttpHeader:
     FORMAT_HTTP_HEADER_STRING = "{key}: {value}"
     
     
-    def __init__(self, key: str, value: str):
+    def __init__(self, key: str, value: str) -> None:
         self._key: str = key
         self._value: str = value
         
@@ -28,4 +28,3 @@ class HttpHeader:
 
     def __repr__(self):
         return self.get_http_header_string()
-    

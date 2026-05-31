@@ -12,7 +12,7 @@ class HttpResponseBody:
     # Format constants.
     FORMAT_REPRESENTATION = "HttpResponseBody(size={size}, preview={preview})"
     
-    def __init__(self, http_response_body_bytes: bytes):
+    def __init__(self, http_response_body_bytes: bytes) -> None:
         self._http_response_body_bytes: bytes = http_response_body_bytes
     
     

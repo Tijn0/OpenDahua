@@ -20,7 +20,7 @@ class ApiRequestDahuaMediaFileFinderFind(ApiRequestDahua[ApiResponseDahuaMediaFi
             channel_identifier: int,
             time_start: datetime,
             time_end: datetime,
-    ):
+    ) -> None:
         self._media_file_finder_identifier: ApiDahuaMediaFileFinderIdentifier = media_file_finder_identifier
         self._channel_identifier: int = channel_identifier
         self._time_start: datetime = time_start

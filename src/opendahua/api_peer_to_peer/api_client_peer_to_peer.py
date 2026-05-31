@@ -21,7 +21,7 @@ class ApiClientPeerToPeer:
     # Increment constants.
     INCREMENT_SEQUENCE_NUMBER = 1
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._sequence_number = 1
     
     

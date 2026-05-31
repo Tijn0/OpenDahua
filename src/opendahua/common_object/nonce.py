@@ -4,7 +4,7 @@ class Nonce:
     # Number constants.
     NUMBER_OF_BYTES_NONCE = 8
     
-    def __init__(self, nonce_string: str):
+    def __init__(self, nonce_string: str) -> None:
         self._nonce_string: str = nonce_string
         
     def get_nonce_string(self) -> str:
@@ -13,4 +13,3 @@ class Nonce:
     @classmethod
     def create_random(cls) -> Nonce:
         return cls(token_hex(cls.NUMBER_OF_BYTES_NONCE))
-    

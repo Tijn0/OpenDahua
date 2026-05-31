@@ -13,7 +13,7 @@ class HttpResponse:
         ")"
     )
     
-    def __init__(self, status_code: HttpStatusCode, all_header: list[HttpHeader], body: HttpResponseBody):
+    def __init__(self, status_code: HttpStatusCode, all_header: list[HttpHeader], body: HttpResponseBody) -> None:
         self._status_code: HttpStatusCode = status_code
         self._all_header: list[HttpHeader] = all_header
         self._body: HttpResponseBody = body

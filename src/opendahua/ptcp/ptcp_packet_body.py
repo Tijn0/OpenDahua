@@ -5,7 +5,7 @@ class PtcpPacketBody(ABC):
     # Body constants.
     BODY_EMPTY = b""
 
-    def __init__(self, ptcp_packet_body_bytes: bytes):
+    def __init__(self, ptcp_packet_body_bytes: bytes) -> None:
         self._ptcp_packet_body_bytes: bytes = ptcp_packet_body_bytes
         
     def get_ptcp_packet_body_bytes(self) -> bytes:
@@ -16,4 +16,3 @@ class PtcpPacketBody(ABC):
     
     def __len__(self):
         return len(self._ptcp_packet_body_bytes)
-        

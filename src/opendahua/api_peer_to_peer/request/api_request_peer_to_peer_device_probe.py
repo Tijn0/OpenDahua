@@ -13,7 +13,7 @@ class ApiRequestPeerToPeerDeviceProbe(ApiRequestPeerToPeer[ApiResponsePeerToPeer
     # Request constants.
     REQUEST_ENDPOINT = "/probe/device/{serial_number}"
     
-    def __init__(self, device: DahuaDevice):
+    def __init__(self, device: DahuaDevice) -> None:
         self._device: DahuaDevice = device
         
     def determine_endpoint(self) -> Url:

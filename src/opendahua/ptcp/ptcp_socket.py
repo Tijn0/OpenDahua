@@ -36,7 +36,7 @@ class PtcpSocket:
     # Size constants.
     SIZE_DATA_MAXIMUM = 1280
 
-    def __init__(self, udp_socket: UdpSocket):
+    def __init__(self, udp_socket: UdpSocket) -> None:
         self._udp_socket: UdpSocket = udp_socket
         
         self._offset_sent = 0

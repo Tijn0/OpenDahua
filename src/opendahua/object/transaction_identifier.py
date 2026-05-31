@@ -5,7 +5,7 @@ class TransactionIdentifier:
     # Length constants.
     LENGTH_TRANSACTION_IDENTIFIER = 12
     
-    def __init__(self, transaction_identifier_bytes: bytes):
+    def __init__(self, transaction_identifier_bytes: bytes) -> None:
         self._transaction_identifier_bytes: bytes = transaction_identifier_bytes
     
     @staticmethod

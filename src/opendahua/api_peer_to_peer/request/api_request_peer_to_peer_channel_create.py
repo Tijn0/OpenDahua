@@ -31,7 +31,7 @@ class ApiRequestPeerToPeerChannelCreate(ApiRequestPeerToPeer[ApiResponsePeerToPe
             nonce: Nonce,
             random_salt: ApiPeerToPeerRandomSalt,
             key_authentication: Key,
-    ):
+    ) -> None:
         self._device: DahuaDevice = device
         self._address_local: Address = address_local
         self._authentication_identifier: AuthenticationIdentifier = authentication_identifier
