@@ -69,6 +69,19 @@ class PtcpSocket:
         
         # TODO: wacht tot verbinding bevestigd is van de andere kant.
     
+    def _send_syn(self) -> None:
+        packet = PtcpPacket(
+            offset_sent=self._offset_sent,
+            offset_received=self._offset_received,
+            packet_identifier=PtcpPacketIdentifier.SYN(),
+            packet_identifier_local=self._packet_identifier_local,
+            packet_identifier_local_received_last=self._packet_identifier_local_received_last,
+            body=PtcpPacketBodySyn()
+        )
+        
+        self._send_packet(packet)
+    
+    
     async def _loop_send(self) -> None:
         while True:
             packet_body = await self._queue_send.get()
@@ -93,6 +106,12 @@ class PtcpSocket:
             self._send_heartbeat()
     
     
+    def open_port(self, port: int) -> None:
+        self._realm_identifier = PtcpRealmIdentifier.create_random()
+        
+        self._queue_send.put_nowait(PtcpPacketBodyBind(self._realm_identifier, port))
+        
+        
     def send(self, data: bytes) -> None:
         if len(data) > self.SIZE_DATA_MAXIMUM:
             raise Exception(self.ERROR_SIZE_DATA_EXCEEDING_MAXIMUM)
@@ -103,15 +122,15 @@ class PtcpSocket:
     async def receive(self, timeout: int|float = None) -> bytes:
         return await asyncio.wait_for(self._queue_receive.get(), timeout)
         
-        
+    
     def _handle_receive(self, data: bytes) -> None:
         packet = PtcpPacketParser.parse(data)
         
         Logger.debug(self.LOGGING_RECEIVE.format(packet=packet))
         
         self._handle_packet(packet)
-    
-    
+
+
     def _handle_packet(self, packet: PtcpPacket) -> None:
         self._update_packet_identifier_local_received_last_if_needed(packet)
         self._handle_ack(packet.get_offset_received())
@@ -127,8 +146,23 @@ class PtcpSocket:
             Logger.warning(self.LOGGING_DROPPING_RETRANSMIT)
             
         self._drain_receive_buffer()
+
+
+    def _update_packet_identifier_local_received_last_if_needed(self, packet: PtcpPacket) -> None:
+        if packet.get_body().is_empty():
+            # Acks don't count as last seen packet identifiers.
+            pass
+        else:
+            self._packet_identifier_local_received_last = packet.get_packet_identifier_local()
         
-    
+        
+    def _handle_ack(self, offset_acked: int) -> None:
+        all_offset_acked: list[int] = [offset for offset in self._all_packet_unacked if offset <= offset_acked]
+        
+        for offset in all_offset_acked:
+            del self._all_packet_unacked[offset]
+        
+        
     def _drain_receive_buffer(self) -> None:
         while self._offset_received in self._buffer_receive:
             packet = self._buffer_receive.pop(self._offset_received)
@@ -147,23 +181,8 @@ class PtcpSocket:
                 pass
             else:
                 self._send_ack()
-
-
-    def _update_packet_identifier_local_received_last_if_needed(self, packet: PtcpPacket) -> None:
-        if packet.get_body().is_empty():
-            # Acks don't count as last seen packet identifiers.
-            pass
-        else:
-            self._packet_identifier_local_received_last = packet.get_packet_identifier_local()
-
-
-    def _handle_ack(self, offset_acked: int) -> None:
-        all_offset_acked: list[int] = [offset for offset in self._all_packet_unacked if offset <= offset_acked]
-        
-        for offset in all_offset_acked:
-            del self._all_packet_unacked[offset]
-        
-        
+    
+    
     def _send_packet_body(self, body: PtcpPacketBody) -> None:
         packet = PtcpPacket(
             offset_sent=self._offset_sent,
@@ -175,25 +194,6 @@ class PtcpSocket:
         )
         
         self._send_packet(packet)
-        
-        
-    def _send_syn(self) -> None:
-        packet = PtcpPacket(
-            offset_sent=self._offset_sent,
-            offset_received=self._offset_received,
-            packet_identifier=PtcpPacketIdentifier.SYN(),
-            packet_identifier_local=self._packet_identifier_local,
-            packet_identifier_local_received_last=self._packet_identifier_local_received_last,
-            body=PtcpPacketBodySyn()
-        )
-        
-        self._send_packet(packet)
-    
-    
-    def open_port(self, port: int) -> None:
-        self._realm_identifier = PtcpRealmIdentifier.create_random()
-        
-        self._queue_send.put_nowait(PtcpPacketBodyBind(self._realm_identifier, port))
         
     
     def _send_ack(self) -> None:
@@ -207,33 +207,6 @@ class PtcpSocket:
         )
     
         self._send_packet(packet)
-    
-    
-    def _add_packet_to_all_packet_unacked_if_needed(self, packet: PtcpPacket) -> None:
-        if packet.get_body().is_empty():
-            # Ack packets don't get acked.
-            pass
-        else:
-            time_sent = asyncio.get_event_loop().time()
-            
-            self._all_packet_unacked[self._offset_sent] = (packet, time_sent)
-    
-    
-    def _handle_retransmit(self) -> None:
-        time_now = asyncio.get_event_loop().time()
-        
-        for offset, (packet, time_sent) in list(self._all_packet_unacked.items()):
-            if time_now - time_sent > self.TIMEOUT_NUMBER_OF_SECOND_ACK:
-                Logger.warning(self.LOGGING_RETRANSMITTING_PACKET.format(offset=offset))
-                self._udp_socket.send(packet.get_ptcp_packet_bytes())
-                self._all_packet_unacked[offset] = (packet, time_now)
-            else:
-                # We are still waiting for an ack.
-                pass
-    
-
-    def _send_heartbeat(self) -> None:
-        self._queue_send.put_nowait(PtcpPacketBodyHeartbeat())
     
     
     def _send_packet(self, packet: PtcpPacket) -> None:
@@ -259,6 +232,33 @@ class PtcpSocket:
             pass
         else:
             self._packet_identifier = self._packet_identifier.decrement()
+    
+
+    def _add_packet_to_all_packet_unacked_if_needed(self, packet: PtcpPacket) -> None:
+        if packet.get_body().is_empty():
+            # Ack packets don't get acked.
+            pass
+        else:
+            time_sent = asyncio.get_event_loop().time()
+            
+            self._all_packet_unacked[self._offset_sent] = (packet, time_sent)
+    
+    
+    def _handle_retransmit(self) -> None:
+        time_now = asyncio.get_event_loop().time()
+        
+        for offset, (packet, time_sent) in list(self._all_packet_unacked.items()):
+            if time_now - time_sent > self.TIMEOUT_NUMBER_OF_SECOND_ACK:
+                Logger.warning(self.LOGGING_RETRANSMITTING_PACKET.format(offset=offset))
+                self._udp_socket.send(packet.get_ptcp_packet_bytes())
+                self._all_packet_unacked[offset] = (packet, time_now)
+            else:
+                # We are still waiting for an ack.
+                pass
+    
+    
+    def _send_heartbeat(self) -> None:
+        self._queue_send.put_nowait(PtcpPacketBodyHeartbeat())
 
 
     async def disconnect(self) -> None:
