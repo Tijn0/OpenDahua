@@ -19,6 +19,9 @@ from opendahua.dahua.object.dahua_video import DahuaVideo
 
 
 class DahuaNVR:
+    """
+    Client for interacting with a Dahua NVR (Network Video Recorder).
+    """
     # Number constants.
     NUMBER_OF_MEDIA_FILE_FIND_RESULT_MAXIMUM = 100
     
@@ -33,6 +36,14 @@ class DahuaNVR:
     SUFFIX_EMPTY = ""
 
     def __init__(self, serial_number: str, username: str, password: str) -> None:
+        """
+        Initialize the NVR client without connecting.
+
+        Call connect() (or use the async context manager) before invoking any other methods.
+        :param serial_number: Serial number of the NVR, used to establish the peer-to-peer connection.
+        :param username: Credential username for the NVR.
+        :param password: Credential password for the NVR.
+        """
         self._device: DahuaDevice = DahuaDevice(serial_number, username, password)
         self._client: ApiClientDahua = ApiClientDahua(self._device)
         
@@ -93,7 +104,7 @@ class DahuaNVR:
         :return: All videos found in the given window, or an empty list if the NVR reports no results for the query.
         """
         if time_end is None:
-            time_end = self.get_time()
+            time_end = await self.get_time()
         else:
             # End time already known.
             pass
