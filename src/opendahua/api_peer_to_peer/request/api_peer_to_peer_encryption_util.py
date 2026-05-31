@@ -3,7 +3,8 @@ import hashlib
 import json
 
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes, CipherContext
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, CipherContext
+from cryptography.hazmat.decrepit.ciphers import modes
 
 from opendahua.common_object.key import Key
 from opendahua.common_object.nonce import Nonce
