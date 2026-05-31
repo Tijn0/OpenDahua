@@ -47,7 +47,8 @@ class ApiClientPeerToPeer:
         return http_request
     
     
-    def _add_all_header_authentication(self, http_request: HttpRequest) -> HttpRequest:
+    @staticmethod
+    def _add_all_header_authentication(http_request: HttpRequest) -> HttpRequest:
         http_request.add_header(ApiPeerToPeerAuthenticationUtil.generate_header_authorization())
         http_request.add_header(ApiPeerToPeerAuthenticationUtil.generate_header_authentication())
 
@@ -65,7 +66,8 @@ class ApiClientPeerToPeer:
         ]
     
     
-    def _parse_api_response(self, api_request: ApiRequestPeerToPeer[T], http_response: HttpResponse) -> T:
+    @staticmethod
+    def _parse_api_response(api_request: ApiRequestPeerToPeer[T], http_response: HttpResponse) -> T:
         response_class = api_request.get_response_class()
         response_unparsed = ApiPeerToPeerBodyParser.parse(http_response.get_body())
         
