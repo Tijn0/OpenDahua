@@ -190,7 +190,7 @@ class PtcpSocket:
         self._send_packet(packet)
     
     
-    def send_bind(self, port: int) -> None:
+    def open_port(self, port: int) -> None:
         self._realm_identifier = PtcpRealmIdentifier.create_random()
         
         self._queue_send.put_nowait(PtcpPacketBodyBind(self._realm_identifier, port))

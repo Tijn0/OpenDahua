@@ -28,7 +28,7 @@ class PtcpHttpClient:
         
 
     async def send_request(self, request: HttpRequest) -> HttpResponse:
-        self._ptcp_socket.send_bind(self.PORT_HTTP)
+        self._ptcp_socket.open_port(self.PORT_HTTP)
         
         Logger.info(request.generate_http_request_bytes())
         
