@@ -22,6 +22,7 @@ from opendahua.udp.udp_socket import UdpSocket
 class SignalingClient:
     # Error constants.
     ERROR_NO_RESPONSE_FROM_DEVICE = "Timeout occurred while waiting for a response from the device. You are most likely on a symmetric NAT causing the UDP hole punch to fail. This can be fixed by implementing relay mode."
+    ERROR_UNEXPECTED = "Unexpected exception."
     
     # Main remote constants.
     MAIN_REMOTE_HOST = "www.easy4ipcloud.com"
@@ -37,7 +38,7 @@ class SignalingClient:
     
     # Number constants.
     NUMBER_OF_PACKET_HANDSHAKE = 4
-    NUMBER_OF_ATTEMPT_CONNECTION = 3
+    NUMBER_OF_ATTEMPT_CONNECTION_MAXIMUM = 3
 
     # Time constants.
     TIME_NUMBER_OF_SECOND_TIMEOUT_HANDSHAKE = 1
@@ -48,7 +49,7 @@ class SignalingClient:
     SEPARATOR_IP_PORT = ":"
 
     # Logging constants.
-    LOGGING_CONNECTION_ATTEMPT_FAILED = "Connection attempt with device failed."
+    LOGGING_CONNECTION_ATTEMPT_FAILED = "Connection attempt with device failed. ({number_of_attempt_current}/{number_of_attempt_maximum})"
 
     def __init__(self, device: DahuaDevice):
         self._device = device
@@ -62,21 +63,7 @@ class SignalingClient:
         random_salt = await self._determine_random_salt(udp_socket_main)
         udp_socket_main.close()
         
-        number_of_attempt_current = 0
-        
-        while number_of_attempt_current <= self.NUMBER_OF_ATTEMPT_CONNECTION:
-            try:
-                udp_socket_device, address_local_device = await self._determine_udp_socket_device(random_salt)
-                
-                return await self._determine_ptcp_socket_device(udp_socket_device, address_local_device)
-            except DahuaPeerToPeerConnectionError as exception:
-                Logger.error(exception)
-                Logger.warning(self.LOGGING_CONNECTION_ATTEMPT_FAILED)
-                
-                number_of_attempt_current += 1
-
-        raise DahuaPeerToPeerConnectionError()
-
+        return await self.determine_ptcp_socket_device(random_salt)
 
     async def _probe(self) -> UdpSocket:
         udp_socket_main = await UdpSocket.create(
@@ -111,6 +98,26 @@ class SignalingClient:
         address_server_peer_to_peer = response.get_address_server_upstream()
         
         return await UdpSocket.create(address_server_peer_to_peer)
+    
+    
+    async def determine_ptcp_socket_device(self, random_salt: ApiPeerToPeerRandomSalt) -> PtcpSocket:
+        for number_of_attempt_current in range(1, self.NUMBER_OF_ATTEMPT_CONNECTION_MAXIMUM + 1):
+            try:
+                udp_socket_device, address_local_device = await self._determine_udp_socket_device(random_salt)
+                
+                return await self._determine_ptcp_socket_device(udp_socket_device, address_local_device)
+            except DahuaPeerToPeerConnectionError:
+                Logger.warning(
+                    self.LOGGING_CONNECTION_ATTEMPT_FAILED.format(
+                        number_of_attempt_current=number_of_attempt_current,
+                        number_of_attempt_maximum=self.NUMBER_OF_ATTEMPT_CONNECTION_MAXIMUM,
+                    ),
+                )
+                
+                if number_of_attempt_current == self.NUMBER_OF_ATTEMPT_CONNECTION_MAXIMUM:
+                    raise
+            
+        raise Exception(self.ERROR_UNEXPECTED)
     
     
     async def _determine_udp_socket_device(self, random_salt: ApiPeerToPeerRandomSalt) -> tuple[UdpSocket, Address]:
