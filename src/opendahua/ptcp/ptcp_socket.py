@@ -46,14 +46,14 @@ class PtcpSocket:
         self._packet_identifier_local_received_last = PtcpPacketIdentifier.ZERO()
         self._realm_identifier = PtcpRealmIdentifier.create_random()
 
-        self._all_packet_unacked = {}
+        self._all_packet_unacked: dict[int, tuple[PtcpPacket, float]] = {}
         
         self._queue_receive: asyncio.Queue[bytes] = asyncio.Queue()
         self._queue_send: asyncio.Queue[PtcpPacketBody] = asyncio.Queue()
         
         self._buffer_receive: dict[int, PtcpPacket] = {}
         
-        self._all_task = []
+        self._all_task: list[asyncio.Task] = []
         
         
     async def connect(self) -> None:
