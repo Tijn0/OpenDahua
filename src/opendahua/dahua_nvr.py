@@ -40,14 +40,26 @@ class DahuaNVR:
         
         
     async def connect(self) -> None:
+        """
+        Connect to the NVR.
+        :return:
+        """
         await self._client.connect()
     
     
     async def disconnect(self) -> None:
+        """
+        Disconnect from the NVR.
+        :return:
+        """
         await self._client.disconnect()
         
         
     async def get_name(self) -> str:
+        """
+        Get the name of the NVR.
+        :return:
+        """
         if self._name is None:
             response = await self._client.send_request(ApiRequestDahuaMachineNameRead())
             self._name = response.get_name_string()
@@ -58,12 +70,34 @@ class DahuaNVR:
 
 
     async def get_time(self) -> datetime:
+        """
+        Get the current local time of the NVR.
+        :return:
+        """
         response = await self._client.send_request(ApiRequestDahuaTimeCurrentRead())
         
         return response.get_time_current()
 
 
-    async def get_all_video(self, channel: int, time_start: datetime, time_end: datetime) -> list[DahuaVideo]:
+    async def get_all_video(
+            self,
+            channel: int,
+            time_start: datetime,
+            time_end: datetime|None = None,
+    ) -> list[DahuaVideo]:
+        """
+        Retrieve all main-stream videos recorded on a channel within a time window.
+        :param channel: NVR channel number to search.
+        :param time_start: Start of the search window (local time).
+        :param time_end: End of the search window, defaults to the current local time of the NVR (local time).
+        :return: All videos found in the given window, or an empty list if the NVR reports no results for the query.
+        """
+        if time_end is None:
+            time_end = self.get_time()
+        else:
+            # End time already known.
+            pass
+        
         response_media_file_finder_create = await self._client.send_request(ApiRequestDahuaMediaFileFinderCreate())
         media_file_finder_identifier = response_media_file_finder_create.get_media_file_finder_identifier()
         
@@ -112,6 +146,13 @@ class DahuaNVR:
         
         
     async def download_video(self, video: DahuaVideo, path: Path|str|None = None) -> Path:
+        """
+        Download a video from the NVR.
+        :param video: The video to download.
+        :param path: Optional destination. May be a path to a directory or file. If no filename is present in the path
+        a filename will be auto-generated. Defaults to working directory.
+        :return: The path of the written file.
+        """
         response_video_download = await self._client.send_request(
             ApiRequestDahuaMediaFileDownload(video.get_path_file_remote()),
         )
