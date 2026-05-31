@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
@@ -27,6 +28,10 @@ class DahuaNVR:
     
     # File constants.
     FILE_MODE_WRITE_BYTES: Literal["wb"] = "wb"
+    
+    # Suffix constants.
+    SUFFIX_PATH_DIRECTORY = "/"
+    SUFFIX_EMPTY = ""
 
     def __init__(self, serial_number: str, username: str, password: str):
         self._device: DahuaDevice = DahuaDevice(serial_number, username, password)
@@ -107,17 +112,27 @@ class DahuaNVR:
         return all_video
         
         
-    async def download_video(self, video: DahuaVideo) -> Path:
+    async def download_video(self, video: DahuaVideo, path: Path|str|None = None) -> Path:
         response_video_download = await self._client.send_request(
             ApiRequestDahuaMediaFileDownload(video.get_path_file_remote()),
         )
         
-        filename_video = await self._generate_filename_video(video)
+        if path is None:
+            path_destination_video = Path(await self._generate_filename_video(video))
+        else:
+            path_destination_video = Path(path)
         
-        async with aiofiles.open(filename_video, self.FILE_MODE_WRITE_BYTES) as file:
-            await file.write(response_video_download.get_media_file_bytes())
+            if path_destination_video.is_dir() or str(path_destination_video).endswith(self.SUFFIX_PATH_DIRECTORY) or path_destination_video.suffix == self.SUFFIX_EMPTY:
+                path_destination_video.mkdir(parents=True, exist_ok=True)
+                
+                path_destination_video = path_destination_video / await self._generate_filename_video(video)
+            else:
+                path_destination_video.parent.mkdir(parents=True, exist_ok=True)
+
+        async with aiofiles.open(path_destination_video, self.FILE_MODE_WRITE_BYTES) as file_video:
+            await file_video.write(response_video_download.get_media_file_bytes())
             
-        return Path(filename_video)
+        return path_destination_video
         
         
     async def _generate_filename_video(self, video: DahuaVideo) -> str:
