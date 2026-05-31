@@ -27,8 +27,8 @@ class PtcpSocket:
     LOGGING_TRANSMIT = "TX: {packet}"
     LOGGING_RECEIVE = "RX: {packet}"
 
-    # Time constants.
-    TIME_NUMBER_OF_SECOND_HEARTBEAT_INTERVAL = 5
+    # Interval constants.
+    INTERVAL_NUMBER_OF_SECOND_HEARTBEAT = 5
 
     # Timeout constants.
     TIMEOUT_NUMBER_OF_SECOND_ACK = 0.50
@@ -89,7 +89,7 @@ class PtcpSocket:
     
     async def _loop_heartbeat(self) -> None:
         while True:
-            await asyncio.sleep(self.TIME_NUMBER_OF_SECOND_HEARTBEAT_INTERVAL)
+            await asyncio.sleep(self.INTERVAL_NUMBER_OF_SECOND_HEARTBEAT)
             self._send_heartbeat()
     
     
