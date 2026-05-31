@@ -13,6 +13,7 @@ from src.api_dahua.request.api_request_dahua_media_file_finder_create import Api
 from src.api_dahua.request.api_request_dahua_media_file_finder_find import ApiRequestDahuaMediaFileFinderFind
 from src.api_dahua.request.api_request_dahua_media_file_finder_read import ApiRequestDahuaMediaFileFinderRead
 from src.api_dahua.request.api_request_dahua_time_current_read import ApiRequestDahuaTimeCurrentRead
+from src.common_object.dahua_error_bad_request import DahuaErrorBadRequest
 from src.dahua.dahua_device import DahuaDevice
 from src.dahua.object.dahua_video import DahuaVideo
 
@@ -68,8 +69,12 @@ class DahuaNVR:
             time_start=time_start,
             time_end=time_end,
         )
-        await self._client.send_request(request_media_file_finder_find)
         
+        try:
+            await self._client.send_request(request_media_file_finder_find)
+        except DahuaErrorBadRequest:
+            return []
+            
         response_media_file_finder_read = await self._client.send_request(
             ApiRequestDahuaMediaFileFinderRead(
                 media_file_finder_identifier,

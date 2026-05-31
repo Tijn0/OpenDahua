@@ -3,6 +3,7 @@ from src.api_dahua.api_dahua_authentication_util import ApiDahuaAuthenticationUt
 from src.api_dahua.api_dahua_body_parser import ApiDahuaBodyParser
 from src.api_dahua.request.api_request_dahua import ApiRequestDahua
 from src.common_object.dahua_error import DahuaError
+from src.common_object.dahua_error_bad_request import DahuaErrorBadRequest
 from src.common_object.nonce import Nonce
 from src.dahua.dahua_device import DahuaDevice
 from src.http.http_request import HttpRequest
@@ -61,6 +62,8 @@ class ApiClientDahua:
             
             if self._is_http_response_success(http_response):
                 return self._parse_api_response(api_request, http_response)
+            elif http_response.get_status_code() == HttpStatusCode.BAD_REQUEST:
+                raise DahuaErrorBadRequest(self.ERROR_DAHUA_API.format(http_response=http_response))
             else:
                 raise DahuaError(self.ERROR_DAHUA_API.format(http_response=http_response))
         else:
