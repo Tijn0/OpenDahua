@@ -71,8 +71,8 @@ class PtcpSocket:
     
     async def _loop_send(self) -> None:
         while True:
-            body = await self._queue_send.get()
-            self._send_body(body)
+            packet_body = await self._queue_send.get()
+            self._send_packet_body(packet_body)
     
     
     async def _loop_receive(self) -> None:
@@ -164,7 +164,7 @@ class PtcpSocket:
             del self._all_packet_unacked[offset]
         
         
-    def _send_body(self, body: PtcpPacketBody) -> None:
+    def _send_packet_body(self, body: PtcpPacketBody) -> None:
         packet = PtcpPacket(
             offset_sent=self._offset_sent,
             offset_received=self._offset_received,
