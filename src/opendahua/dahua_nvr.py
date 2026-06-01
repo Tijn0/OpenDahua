@@ -122,25 +122,26 @@ class DahuaNVR:
         try:
             await self._client.send_request(request_media_file_finder_find)
         except DahuaErrorBadRequest:
+            # Dahua responds with 400 bad request when there are no results.
             return []
-            
-        response_media_file_finder_read = await self._client.send_request(
-            ApiRequestDahuaMediaFileFinderRead(
-                media_file_finder_identifier,
-                self.NUMBER_OF_MEDIA_FILE_FIND_RESULT_MAXIMUM,
-            ),
-        )
         
-        all_result_item = response_media_file_finder_read.get_all_result_item()
+        all_result_item = []
         
-        while len(response_media_file_finder_read.get_all_result_item()) == self.NUMBER_OF_MEDIA_FILE_FIND_RESULT_MAXIMUM:
+        while True:
             response_media_file_finder_read = await self._client.send_request(
                 ApiRequestDahuaMediaFileFinderRead(
                     media_file_finder_identifier,
                     self.NUMBER_OF_MEDIA_FILE_FIND_RESULT_MAXIMUM,
                 ),
             )
-            all_result_item += response_media_file_finder_read.get_all_result_item()
+            batch = response_media_file_finder_read.get_all_result_item()
+            all_result_item += batch
+            
+            if len(batch) < self.NUMBER_OF_MEDIA_FILE_FIND_RESULT_MAXIMUM:
+                break
+            else:
+                # Keep paginating
+                pass
             
         await self._client.send_request(ApiRequestDahuaMediaFileFinderClose(media_file_finder_identifier))
         
