@@ -43,5 +43,5 @@ if __name__ == "__main__":
 ```
 
 
-## Acknowledgments
+## Special thanks to
 - [khoanguyen-3fc/dh-p2p](https://github.com/khoanguyen-3fc/dh-p2p): The reverse engineering work and proof-of-concept that make this project possible.
