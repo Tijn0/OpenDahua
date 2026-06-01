@@ -33,7 +33,7 @@ async def main() -> None:
         )
         
         for video in all_video:
-            path = nvr.download_video(video, "videos/")
+            path = await nvr.download_video(video, "videos/")
             
             # Example: videos/ExampleNVR_ch1_20260601135935_20260601140002.dav
             print(f"Video path: {path}")
