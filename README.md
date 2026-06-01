@@ -16,7 +16,7 @@ uv add opendahua
 
 ## Usage
 > [!WARNING]
-> Within the ```async with DahuaNVR(xxx):``` block you should use async for all IO operations. The peer-to-peer connection might die if you don't do this.
+> Within the ```async with DahuaNVR(xxx) as nvr:``` block you should use async for all IO operations. The peer-to-peer connection might die if you don't do this.
 
 ```python
 import asyncio
