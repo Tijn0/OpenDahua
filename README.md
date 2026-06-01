@@ -33,7 +33,10 @@ async def main() -> None:
         )
         
         for video in all_video:
-            nvr.download_video(video, "videos/")
+            path = nvr.download_video(video, "videos/")
+            
+            # Example: videos/ExampleNVR_ch1_20260601135935_20260601140002.dav
+            print(f"Video path: {path}")
         
 if __name__ == "__main__":
     asyncio.run(main())
