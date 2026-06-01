@@ -1,5 +1,5 @@
 # OpenDahua
-![PyPI - Version](https://img.shields.io/pypi/v/opendahua)
+![PyPI - Version](https://img.shields.io/pypi/v/opendahua) ![GitHub License](https://img.shields.io/github/license/Tijn0/OpenDahua)
  
 Python SDK for interacting with Dahua NVRs (Network Video Recorders) over their proprietary peer-to-peer protocol.
 
