@@ -117,7 +117,7 @@ wheels = [
 
 [[package]]
 name = "opendahua"
-version = "1.0.4"
+version = "1.0.5"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
