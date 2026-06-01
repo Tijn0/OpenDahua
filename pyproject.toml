@@ -2,6 +2,7 @@
 name = "OpenDahua"
 version = "1.0.0"
 description = "SDK for interacting with Dahua NVRs over their peer-to-peer protocol."
+authors = ["Tijn Heijboer <tijnheijboer@gmail.com>"]
 requires-python = ">=3.14"
 dependencies = [
     "aiofiles>=25.1.0",
