@@ -1,6 +1,6 @@
 [project]
 name = "OpenDahua"
-version = "1.0.5"
+version = "1.0.6"
 description = "SDK for interacting with Dahua NVRs over their peer-to-peer protocol."
 authors = [
     { name = "Tijn Heijboer", email = "tijnheijboer@gmail.com" }

@@ -90,7 +90,7 @@ class DahuaNVR:
         return response.get_time_current()
 
 
-    async def get_all_video(
+    async def get_videos(
             self,
             channel: int,
             time_start: datetime,

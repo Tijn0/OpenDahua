@@ -27,7 +27,7 @@ from opendahua import DahuaNVR
 
 async def main() -> None:
     async with DahuaNVR("SERIAL_NUMBER_HERE", "USERNAME_HERE", "PASSWORD_HERE") as nvr:
-        all_video = await nvr.get_all_video(
+        all_video = await nvr.get_videos(
             channel=1,
             time_start=datetime.now() - timedelta(days=1),
         )
