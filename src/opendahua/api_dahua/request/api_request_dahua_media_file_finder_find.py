@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Type
+import urllib.parse
 
 from opendahua.api.api_request import T
 from opendahua.api_dahua.object.api_dahua_media_file_finder_identifier import ApiDahuaMediaFileFinderIdentifier
@@ -32,8 +33,8 @@ class ApiRequestDahuaMediaFileFinderFind(ApiRequestDahua[ApiResponseDahuaMediaFi
             self.REQUEST_ENDPOINT.format(
                 media_file_finder_identifier = self._media_file_finder_identifier.get_media_file_identifier_int(),
                 channel_identifier = self._channel_identifier,
-                time_start = self._time_start.isoformat(sep=" ", timespec="seconds"),
-                time_end = self._time_end.isoformat(sep=" ", timespec="seconds"),
+                time_start = urllib.parse.quote_plus(self._time_start.isoformat(sep=" ", timespec="seconds")),
+                time_end = urllib.parse.quote_plus(self._time_end.isoformat(sep=" ", timespec="seconds")),
             ),
         )
     
